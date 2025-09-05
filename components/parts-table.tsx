@@ -239,14 +239,18 @@ export default function PartsTable({
       id: 'cutting_status',
       header: 'Cutting Status',
       cell: ({ row }) => {
-        const status = row.original.cutting_status
+        const status = row.original.processing_status
+        const isCutting = status?.includes('cutting')
+        const isAssigned = status?.includes('assigned')
         return (
           <span className={`px-2 py-1 rounded text-xs font-medium ${
-            status === 'cutting' 
+            isCutting
               ? 'bg-green-100 text-green-800' 
+              : isAssigned
+              ? 'bg-blue-100 text-blue-800'
               : 'bg-yellow-100 text-yellow-800'
           }`}>
-            {status === 'cutting' ? 'Cutting' : 'Assigned'}
+            {isCutting ? 'Cutting' : isAssigned ? 'Assigned' : 'Pending'}
           </span>
         )
       },
