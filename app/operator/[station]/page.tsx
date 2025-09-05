@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { Part } from '@/app/page'
 import sampleData from '@/order_data_table.json'
 import { completeProcess, rejectPart } from '@/lib/workflow-engine'
@@ -51,9 +52,20 @@ const stationConfig: Record<StationType, {
   }
 }
 
-export default async function OperatorStation({ params }: { params: Promise<{ station: StationType }> }) {
-  const { station } = await params
-  const config = stationConfig[station]
+export default function OperatorStation({ params }: { params: Promise<{ station: StationType }> }) {
+  const [station, setStation] = useState<StationType | null>(null)
+  const [config, setConfig] = useState<any>(null)
+
+  useEffect(() => {
+    params.then(p => {
+      setStation(p.station)
+      setConfig(stationConfig[p.station])
+    })
+  }, [params])
+
+  if (!station || !config) {
+    return <div>Loading...</div>
+  }
   
   return <OperatorStationContent station={station} config={config} />
 }
@@ -247,9 +259,9 @@ function OperatorStationContent({ station, config }: { station: StationType, con
       <div className="mt-8 text-center text-gray-500">
         <p>In production, parts would be scanned with barcode reader</p>
         <p className="mt-2">
-          <a href="/" className="text-blue-600 hover:text-blue-800">
+          <Link href="/" className="text-blue-600 hover:text-blue-800">
             ← Back to Main Dashboard
-          </a>
+          </Link>
         </p>
       </div>
     </div>

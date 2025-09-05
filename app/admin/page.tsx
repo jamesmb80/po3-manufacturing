@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { ChevronUp, ChevronDown, Plus, Trash2, Save } from 'lucide-react'
 import { 
   loadProcessConfiguration, 
@@ -85,9 +86,9 @@ export default function AdminPanel() {
     <div className="container mx-auto p-4 max-w-4xl">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Admin Panel - Process Configuration</h1>
-        <a href="/" className="text-blue-600 hover:text-blue-800">
+        <Link href="/" className="text-blue-600 hover:text-blue-800">
           ← Back to Dashboard
-        </a>
+        </Link>
       </div>
 
       {/* Process Sequence Configuration */}
