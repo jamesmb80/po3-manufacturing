@@ -6,8 +6,8 @@ export async function middleware(req: NextRequest) {
   const res = NextResponse.next()
   const pathname = req.nextUrl.pathname
 
-  // Skip middleware for login page and public assets
-  if (pathname === '/login' || pathname === '/' || pathname.startsWith('/_next') || pathname.startsWith('/favicon')) {
+  // Skip middleware for login page and public assets only
+  if (pathname === '/login' || pathname.startsWith('/_next') || pathname.startsWith('/favicon')) {
     return res
   }
 
@@ -50,8 +50,8 @@ export async function middleware(req: NextRequest) {
   // Check if user is authenticated
   const { data: { session } } = await supabase.auth.getSession()
 
-  // If not authenticated and trying to access protected route, redirect to login
-  if (!session && pathname !== '/') {
+  // If not authenticated, redirect to login
+  if (!session) {
     return NextResponse.redirect(new URL('/login', req.url))
   }
 
