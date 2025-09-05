@@ -284,6 +284,7 @@ export default function Home() {
           setFilters={setFilters}
           allParts={parts}
           availableOptions={availableOptions}
+          columnConfig={columnConfig}
         />
         <ColumnVisibility
           columns={columnConfig}

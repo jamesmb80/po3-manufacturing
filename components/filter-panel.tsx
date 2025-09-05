@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import { Filter, X, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react'
 import { Part } from '@/app/page'
 import { AvailableOptions } from '@/lib/filter-utils'
+import { ColumnConfig } from '@/components/column-visibility'
 
 interface FilterPanelProps {
   filters: {
@@ -18,9 +19,10 @@ interface FilterPanelProps {
   setFilters: (filters: any) => void
   allParts: Part[]
   availableOptions?: AvailableOptions
+  columnConfig?: ColumnConfig[]
 }
 
-export default function FilterPanel({ filters, setFilters, allParts, availableOptions }: FilterPanelProps) {
+export default function FilterPanel({ filters, setFilters, allParts, availableOptions, columnConfig }: FilterPanelProps) {
   const [isOpen, setIsOpen] = useState(false) // Start collapsed for cleaner initial view
   const [expandedSections, setExpandedSections] = useState({
     dates: false, // Start individual sections collapsed too
@@ -70,6 +72,13 @@ export default function FilterPanel({ filters, setFilters, allParts, availableOp
     if (!availableOptions) return null
     const isAvailable = isOptionAvailable(option, optionType as any)
     return isAvailable ? null : 0
+  }
+
+  // Helper function to check if a column is visible
+  const isColumnVisible = (columnId: string) => {
+    if (!columnConfig) return true // If no column config, show all filters
+    const column = columnConfig.find(col => col.id === columnId)
+    return column ? column.visible : true
   }
 
   const toggleSection = (section: keyof typeof expandedSections) => {
@@ -164,243 +173,255 @@ export default function FilterPanel({ filters, setFilters, allParts, availableOp
       {isOpen && (
         <div className="p-4 space-y-4">
           {/* Date Filters */}
-          <div className="border-b pb-3">
-            <button
-              onClick={() => toggleSection('dates')}
-              className="flex items-center justify-between w-full text-left text-sm font-medium text-gray-700 hover:text-gray-900"
-            >
-              <span>Cutting Dates</span>
-              {expandedSections.dates ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-            </button>
-            {expandedSections.dates && (
-              <div className="grid grid-cols-2 gap-4 mt-3">
-                <div>
-                  <label className="block text-xs text-gray-600 mb-1">From</label>
-                  <input
-                    type="date"
-                    value={filters.cuttingDateFrom}
-                    onChange={(e) => setFilters({ ...filters, cuttingDateFrom: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-md text-sm"
-                  />
+          {isColumnVisible('cutting_date') && (
+            <div className="border-b pb-3">
+              <button
+                onClick={() => toggleSection('dates')}
+                className="flex items-center justify-between w-full text-left text-sm font-medium text-gray-700 hover:text-gray-900"
+              >
+                <span>Cutting Dates</span>
+                {expandedSections.dates ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+              {expandedSections.dates && (
+                <div className="grid grid-cols-2 gap-4 mt-3">
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">From</label>
+                    <input
+                      type="date"
+                      value={filters.cuttingDateFrom}
+                      onChange={(e) => setFilters({ ...filters, cuttingDateFrom: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-md text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">To</label>
+                    <input
+                      type="date"
+                      value={filters.cuttingDateTo}
+                      onChange={(e) => setFilters({ ...filters, cuttingDateTo: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-md text-sm"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-xs text-gray-600 mb-1">To</label>
-                  <input
-                    type="date"
-                    value={filters.cuttingDateTo}
-                    onChange={(e) => setFilters({ ...filters, cuttingDateTo: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-md text-sm"
-                  />
-                </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {/* Material Filter */}
-            <div>
-              <button
-                onClick={() => toggleSection('material')}
-                className="flex items-center justify-between w-full text-left text-sm font-medium text-gray-700 hover:text-gray-900 mb-2"
-              >
-                <span>Material {filters.material.length > 0 && `(${filters.material.length})`}</span>
-                {expandedSections.material ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              </button>
-              {expandedSections.material && (
-                <div className="space-y-1 max-h-32 overflow-y-auto">
-                  {uniqueValues.materials.map(material => {
-                    const isAvailable = isOptionAvailable(material, 'materials')
-                    const count = getOptionCount(material, 'materials')
-                    return (
-                      <label 
-                        key={material} 
-                        className={`flex items-center px-1 ${
-                          isAvailable ? 'hover:bg-gray-50' : 'opacity-50 cursor-not-allowed'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={filters.material.includes(material)}
-                          onChange={() => isAvailable && handleMaterialChange(material)}
-                          disabled={!isAvailable}
-                          className="mr-2"
-                        />
-                        <span className={`text-sm ${!isAvailable ? 'text-gray-400' : ''}`}>
-                          {material}
-                        </span>
-                        {count === 0 && (
-                          <span className="ml-auto text-xs text-gray-400">(0)</span>
-                        )}
-                      </label>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
+            {isColumnVisible('material') && (
+              <div>
+                <button
+                  onClick={() => toggleSection('material')}
+                  className="flex items-center justify-between w-full text-left text-sm font-medium text-gray-700 hover:text-gray-900 mb-2"
+                >
+                  <span>Material {filters.material.length > 0 && `(${filters.material.length})`}</span>
+                  {expandedSections.material ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+                {expandedSections.material && (
+                  <div className="space-y-1 max-h-32 overflow-y-auto">
+                    {uniqueValues.materials.map(material => {
+                      const isAvailable = isOptionAvailable(material, 'materials')
+                      const count = getOptionCount(material, 'materials')
+                      return (
+                        <label 
+                          key={material} 
+                          className={`flex items-center px-1 ${
+                            isAvailable ? 'hover:bg-gray-50' : 'opacity-50 cursor-not-allowed'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={filters.material.includes(material)}
+                            onChange={() => isAvailable && handleMaterialChange(material)}
+                            disabled={!isAvailable}
+                            className="mr-2"
+                          />
+                          <span className={`text-sm ${!isAvailable ? 'text-gray-400' : ''}`}>
+                            {material}
+                          </span>
+                          {count === 0 && (
+                            <span className="ml-auto text-xs text-gray-400">(0)</span>
+                          )}
+                        </label>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Type Filter */}
-            <div>
-              <button
-                onClick={() => toggleSection('type')}
-                className="flex items-center justify-between w-full text-left text-sm font-medium text-gray-700 hover:text-gray-900 mb-2"
-              >
-                <span>Type {filters.type.length > 0 && `(${filters.type.length})`}</span>
-                {expandedSections.type ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              </button>
-              {expandedSections.type && (
-                <div className="space-y-1 max-h-32 overflow-y-auto">
-                  {uniqueValues.types.map(type => {
-                    const isAvailable = isOptionAvailable(type, 'types')
-                    const count = getOptionCount(type, 'types')
-                    return (
-                      <label 
-                        key={type} 
-                        className={`flex items-center px-1 ${
-                          isAvailable ? 'hover:bg-gray-50' : 'opacity-50 cursor-not-allowed'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={filters.type.includes(type)}
-                          onChange={() => isAvailable && handleTypeChange(type)}
-                          disabled={!isAvailable}
-                          className="mr-2"
-                        />
-                        <span className={`text-sm ${!isAvailable ? 'text-gray-400' : ''}`}>
-                          {type === 'None' ? 'No Type' : type}
-                        </span>
-                        {count === 0 && (
-                          <span className="ml-auto text-xs text-gray-400">(0)</span>
-                        )}
-                      </label>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
+            {isColumnVisible('type') && (
+              <div>
+                <button
+                  onClick={() => toggleSection('type')}
+                  className="flex items-center justify-between w-full text-left text-sm font-medium text-gray-700 hover:text-gray-900 mb-2"
+                >
+                  <span>Type {filters.type.length > 0 && `(${filters.type.length})`}</span>
+                  {expandedSections.type ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+                {expandedSections.type && (
+                  <div className="space-y-1 max-h-32 overflow-y-auto">
+                    {uniqueValues.types.map(type => {
+                      const isAvailable = isOptionAvailable(type, 'types')
+                      const count = getOptionCount(type, 'types')
+                      return (
+                        <label 
+                          key={type} 
+                          className={`flex items-center px-1 ${
+                            isAvailable ? 'hover:bg-gray-50' : 'opacity-50 cursor-not-allowed'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={filters.type.includes(type)}
+                            onChange={() => isAvailable && handleTypeChange(type)}
+                            disabled={!isAvailable}
+                            className="mr-2"
+                          />
+                          <span className={`text-sm ${!isAvailable ? 'text-gray-400' : ''}`}>
+                            {type === 'None' ? 'No Type' : type}
+                          </span>
+                          {count === 0 && (
+                            <span className="ml-auto text-xs text-gray-400">(0)</span>
+                          )}
+                        </label>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Thickness Filter */}
-            <div>
-              <button
-                onClick={() => toggleSection('thickness')}
-                className="flex items-center justify-between w-full text-left text-sm font-medium text-gray-700 hover:text-gray-900 mb-2"
-              >
-                <span>Thickness {filters.thickness.length > 0 && `(${filters.thickness.length})`}</span>
-                {expandedSections.thickness ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              </button>
-              {expandedSections.thickness && (
-                <div className="space-y-1 max-h-32 overflow-y-auto">
-                  {uniqueValues.thicknesses.map(thickness => {
-                    const isAvailable = isOptionAvailable(thickness, 'thicknesses')
-                    const count = getOptionCount(thickness, 'thicknesses')
-                    return (
-                      <label 
-                        key={thickness} 
-                        className={`flex items-center px-1 ${
-                          isAvailable ? 'hover:bg-gray-50' : 'opacity-50 cursor-not-allowed'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={filters.thickness.includes(thickness)}
-                          onChange={() => isAvailable && handleThicknessChange(thickness)}
-                          disabled={!isAvailable}
-                          className="mr-2"
-                        />
-                        <span className={`text-sm ${!isAvailable ? 'text-gray-400' : ''}`}>
-                          {thickness}
-                        </span>
-                        {count === 0 && (
-                          <span className="ml-auto text-xs text-gray-400">(0)</span>
-                        )}
-                      </label>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
+            {isColumnVisible('thickness') && (
+              <div>
+                <button
+                  onClick={() => toggleSection('thickness')}
+                  className="flex items-center justify-between w-full text-left text-sm font-medium text-gray-700 hover:text-gray-900 mb-2"
+                >
+                  <span>Thickness {filters.thickness.length > 0 && `(${filters.thickness.length})`}</span>
+                  {expandedSections.thickness ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+                {expandedSections.thickness && (
+                  <div className="space-y-1 max-h-32 overflow-y-auto">
+                    {uniqueValues.thicknesses.map(thickness => {
+                      const isAvailable = isOptionAvailable(thickness, 'thicknesses')
+                      const count = getOptionCount(thickness, 'thicknesses')
+                      return (
+                        <label 
+                          key={thickness} 
+                          className={`flex items-center px-1 ${
+                            isAvailable ? 'hover:bg-gray-50' : 'opacity-50 cursor-not-allowed'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={filters.thickness.includes(thickness)}
+                            onChange={() => isAvailable && handleThicknessChange(thickness)}
+                            disabled={!isAvailable}
+                            className="mr-2"
+                          />
+                          <span className={`text-sm ${!isAvailable ? 'text-gray-400' : ''}`}>
+                            {thickness}
+                          </span>
+                          {count === 0 && (
+                            <span className="ml-auto text-xs text-gray-400">(0)</span>
+                          )}
+                        </label>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Tags Filter */}
-            <div>
-              <button
-                onClick={() => toggleSection('tags')}
-                className="flex items-center justify-between w-full text-left text-sm font-medium text-gray-700 hover:text-gray-900 mb-2"
-              >
-                <span>Tags {filters.tags.length > 0 && `(${filters.tags.length})`}</span>
-                {expandedSections.tags ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              </button>
-              {expandedSections.tags && (
-                <div className="space-y-1 max-h-32 overflow-y-auto">
-                  {uniqueValues.tags.map(tag => {
-                    const isAvailable = isOptionAvailable(tag, 'tags')
-                    const count = getOptionCount(tag, 'tags')
-                    return (
-                      <label 
-                        key={tag} 
-                        className={`flex items-center px-1 ${
-                          isAvailable ? 'hover:bg-gray-50' : 'opacity-50 cursor-not-allowed'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={filters.tags.includes(tag)}
-                          onChange={() => isAvailable && handleTagChange(tag)}
-                          disabled={!isAvailable}
-                          className="mr-2"
-                        />
-                        <span className={`text-sm ${!isAvailable ? 'text-gray-400' : ''}`}>
-                          {tag}
-                        </span>
-                        {count === 0 && (
-                          <span className="ml-auto text-xs text-gray-400">(0)</span>
-                        )}
-                      </label>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
+            {isColumnVisible('tags') && (
+              <div>
+                <button
+                  onClick={() => toggleSection('tags')}
+                  className="flex items-center justify-between w-full text-left text-sm font-medium text-gray-700 hover:text-gray-900 mb-2"
+                >
+                  <span>Tags {filters.tags.length > 0 && `(${filters.tags.length})`}</span>
+                  {expandedSections.tags ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+                {expandedSections.tags && (
+                  <div className="space-y-1 max-h-32 overflow-y-auto">
+                    {uniqueValues.tags.map(tag => {
+                      const isAvailable = isOptionAvailable(tag, 'tags')
+                      const count = getOptionCount(tag, 'tags')
+                      return (
+                        <label 
+                          key={tag} 
+                          className={`flex items-center px-1 ${
+                            isAvailable ? 'hover:bg-gray-50' : 'opacity-50 cursor-not-allowed'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={filters.tags.includes(tag)}
+                            onChange={() => isAvailable && handleTagChange(tag)}
+                            disabled={!isAvailable}
+                            className="mr-2"
+                          />
+                          <span className={`text-sm ${!isAvailable ? 'text-gray-400' : ''}`}>
+                            {tag}
+                          </span>
+                          {count === 0 && (
+                            <span className="ml-auto text-xs text-gray-400">(0)</span>
+                          )}
+                        </label>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Order Status Filter */}
-            <div>
-              <button
-                onClick={() => toggleSection('status')}
-                className="flex items-center justify-between w-full text-left text-sm font-medium text-gray-700 hover:text-gray-900 mb-2"
-              >
-                <span>Order Status {filters.orderStatus.length > 0 && `(${filters.orderStatus.length})`}</span>
-                {expandedSections.status ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              </button>
-              {expandedSections.status && (
-                <div className="space-y-1 max-h-32 overflow-y-auto">
-                  {uniqueValues.statuses.map(status => {
-                    const isAvailable = isOptionAvailable(status, 'statuses')
-                    const count = getOptionCount(status, 'statuses')
-                    return (
-                      <label 
-                        key={status} 
-                        className={`flex items-center px-1 ${
-                          isAvailable ? 'hover:bg-gray-50' : 'opacity-50 cursor-not-allowed'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={filters.orderStatus.includes(status)}
-                          onChange={() => isAvailable && handleStatusChange(status)}
-                          disabled={!isAvailable}
-                          className="mr-2"
-                        />
-                        <span className={`text-sm ${!isAvailable ? 'text-gray-400' : ''}`}>
-                          {status}
-                        </span>
-                        {count === 0 && (
-                          <span className="ml-auto text-xs text-gray-400">(0)</span>
-                        )}
-                      </label>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
+            {isColumnVisible('order_status') && (
+              <div>
+                <button
+                  onClick={() => toggleSection('status')}
+                  className="flex items-center justify-between w-full text-left text-sm font-medium text-gray-700 hover:text-gray-900 mb-2"
+                >
+                  <span>Order Status {filters.orderStatus.length > 0 && `(${filters.orderStatus.length})`}</span>
+                  {expandedSections.status ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+                {expandedSections.status && (
+                  <div className="space-y-1 max-h-32 overflow-y-auto">
+                    {uniqueValues.statuses.map(status => {
+                      const isAvailable = isOptionAvailable(status, 'statuses')
+                      const count = getOptionCount(status, 'statuses')
+                      return (
+                        <label 
+                          key={status} 
+                          className={`flex items-center px-1 ${
+                            isAvailable ? 'hover:bg-gray-50' : 'opacity-50 cursor-not-allowed'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={filters.orderStatus.includes(status)}
+                            onChange={() => isAvailable && handleStatusChange(status)}
+                            disabled={!isAvailable}
+                            className="mr-2"
+                          />
+                          <span className={`text-sm ${!isAvailable ? 'text-gray-400' : ''}`}>
+                            {status}
+                          </span>
+                          {count === 0 && (
+                            <span className="ml-auto text-xs text-gray-400">(0)</span>
+                          )}
+                        </label>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
