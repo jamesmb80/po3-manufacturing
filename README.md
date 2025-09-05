@@ -18,7 +18,8 @@ A modern production planning and workflow management system for manufacturing op
 - **Authentication** - Secure login with Supabase Auth
 
 ### User Interface (Updated January 5, 2025)
-- **Collapsible Filter Panel** - Accordion-style filters that start collapsed for cleaner view
+- **Dynamic Filter Panel** - Accordion-style filters that automatically show/hide based on visible columns
+- **Column Visibility Control** - Show/hide table columns with filters adapting accordingly
 - **Organized Tab Bar** - Visual grouping of related processes with color coding:
   - Initial stage (blue)
   - Machine groups (yellow/green)
@@ -74,7 +75,8 @@ PO3/
 │           └── page.tsx        # Dynamic operator station views
 ├── components/
 │   ├── parts-table.tsx        # Data table with actions
-│   ├── filter-panel.tsx       # Collapsible filter system
+│   ├── filter-panel.tsx       # Dynamic filter system with column visibility integration
+│   ├── column-visibility.tsx  # Column show/hide controls with localStorage persistence
 │   └── ui/
 │       └── tabs.tsx           # Custom tab components
 ├── lib/
@@ -143,10 +145,11 @@ npm run dev
 
 ### Main Dashboard
 1. **View Parts** - See all parts across 11 different workflow stages
-2. **Filter Data** - Click "Filters" to expand filtering options
-3. **Assign to Machines** - Select parts and assign to Saw/Router/Laser
-4. **Move Through Workflow** - Progress parts through cutting → processing → packing
-5. **Handle Exceptions** - Reject parts to send them to Recuts
+2. **Control Columns** - Use column visibility controls to show/hide data fields
+3. **Filter Data** - Click "Filters" to expand filtering options (adapts to visible columns)
+4. **Assign to Machines** - Select parts and assign to Saw/Router/Laser
+5. **Move Through Workflow** - Progress parts through cutting → processing → packing
+6. **Handle Exceptions** - Reject parts to send them to Recuts
 
 ### Operator Stations
 1. Open from main dashboard dropdown menu
@@ -270,6 +273,14 @@ Private project - All rights reserved
 
 ## 📝 Changelog
 
+### January 5, 2025 - v1.0.2
+**Dynamic Filter Enhancement**
+- 🎛️ Filter panel now adapts to visible columns automatically
+- 👁️ Only shows relevant filters based on column visibility settings
+- 🔧 Enhanced FilterPanel component with columnConfig integration
+- 📱 Improved user experience by reducing UI complexity
+- ✅ Maintains backwards compatibility with fallback behavior
+
 ### January 5, 2025 - v1.0.1
 **Project Cleanup & Optimization**
 - 🗑️ Removed 1.5MB of backup folders (now using Git for version control)
@@ -289,5 +300,5 @@ Private project - All rights reserved
 ---
 
 *Last Updated: January 5, 2025*  
-*Version: 1.0.1 - Clean Architecture with Optimizations*  
+*Version: 1.0.2 - Dynamic Filter Enhancement*  
 *Repository: [github.com/jamesmb80/po3-manufacturing](https://github.com/jamesmb80/po3-manufacturing)*
