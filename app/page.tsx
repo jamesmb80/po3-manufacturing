@@ -4,12 +4,14 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import PartsTable from '@/components/parts-table'
 import FilterPanel from '@/components/filter-panel'
+import { ErrorBoundary } from '@/components/error-boundary'
+import { PageLoadingSkeleton } from '@/components/loading-skeleton'
 import ColumnVisibility, { DEFAULT_COLUMNS, ColumnConfig } from '@/components/column-visibility'
 import { getAvailableOptions } from '@/lib/filter-utils'
 import { exportPartsToCSV } from '@/lib/csv-utils'
 import { completeProcess, rejectPart } from '@/lib/workflow-engine'
 import { Package, Scissors, RotateCcw } from 'lucide-react'
-import { partsApi } from '@/lib/supabase-client'
+import { partsApi, supabaseClient } from '@/lib/supabase-client'
 
 export type Part = {
   sheet_id: string
@@ -36,7 +38,7 @@ export type Part = {
   machine_assignment?: 'saw' | 'router' | 'laser' | null
   processing_status?: 'ready_to_cut' | 'assigned_to_saw' | 'assigned_to_router' | 'assigned_to_laser' | 
     'cutting_saw' | 'cutting_router' | 'cutting_laser' | 
-    'parts_to_edge_band' | 'parts_to_lacquer' | 'ready_to_pack' | 'recuts' | null
+    'parts_to_edge_band' | 'parts_to_lacquer' | 'ready_to_pack' | 'completed' | 'recuts' | null
   completed_processes?: string[]  // Track which processes are done
   next_process?: string  // Calculated next destination
   
@@ -95,13 +97,43 @@ export default function Home() {
     }
   }, [])
 
-  // Load parts from Supabase
+  // Load parts from Supabase and subscribe to real-time changes
   useEffect(() => {
     loadParts()
     
-    // Poll for updates every 5 seconds
-    const interval = setInterval(loadParts, 5000)
-    return () => clearInterval(interval)
+    // Subscribe to real-time changes
+    const channel = supabaseClient
+      .channel('parts-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'parts'
+        },
+        (payload) => {
+          console.log('Real-time update:', payload)
+          
+          // Handle different types of changes
+          if (payload.eventType === 'INSERT') {
+            setParts(prev => [...prev, payload.new as Part])
+          } else if (payload.eventType === 'UPDATE') {
+            setParts(prev => 
+              prev.map(p => p.sheet_id === payload.new.sheet_id ? payload.new as Part : p)
+            )
+          } else if (payload.eventType === 'DELETE') {
+            setParts(prev => 
+              prev.filter(p => p.sheet_id !== payload.old.sheet_id)
+            )
+          }
+        }
+      )
+      .subscribe()
+    
+    // Cleanup subscription on unmount
+    return () => {
+      supabaseClient.removeChannel(channel)
+    }
   }, [loadParts])
 
   const availableOptions = useMemo(() => getAvailableOptions(parts, filters), [parts, filters])
@@ -199,6 +231,25 @@ export default function Home() {
     setParts(updatedParts)
   }
 
+  const handleMarkAsComplete = async (partIds: string[]) => {
+    const updatedParts = parts.map(part => {
+      if (partIds.includes(part.sheet_id)) {
+        return {
+          ...part,
+          processing_status: 'completed' as Part['processing_status'],
+          machine_assignment: null
+        }
+      }
+      return part
+    })
+    
+    // Update in database
+    const partsToUpdate = updatedParts.filter(p => partIds.includes(p.sheet_id))
+    await partsApi.updateMany(partsToUpdate)
+    
+    setParts(updatedParts)
+  }
+
   const handleExport = () => {
     exportPartsToCSV(filteredParts, 'all')
   }
@@ -228,21 +279,22 @@ export default function Home() {
     p.processing_status === 'ready_to_pack'
   )
 
+  const completedParts = filteredParts.filter(p => 
+    p.processing_status === 'completed'
+  )
+
   const recutParts = filteredParts.filter(p => 
     p.processing_status === 'recuts'
   )
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg">Loading parts...</div>
-      </div>
-    )
+    return <PageLoadingSkeleton />
   }
 
   return (
-    <div className="container mx-auto p-4 space-y-4">
-      <h1 className="text-3xl font-bold mb-4">PO3 Manufacturing Control System</h1>
+    <ErrorBoundary>
+      <div className="container mx-auto p-4 space-y-4">
+        <h1 className="text-3xl font-bold mb-4">PO3 Manufacturing Control System</h1>
       
       <div className="flex justify-between items-start gap-4">
         <FilterPanel
@@ -260,7 +312,7 @@ export default function Home() {
       </div>
 
       <Tabs defaultValue="ready" className="space-y-4">
-        <TabsList className="grid grid-cols-7 w-full">
+        <TabsList className="grid grid-cols-8 w-full">
           <TabsTrigger value="ready" className="flex items-center gap-1">
             <Scissors className="h-4 w-4" />
             Ready ({readyToCutParts.length})
@@ -280,6 +332,9 @@ export default function Home() {
           <TabsTrigger value="packing" className="flex items-center gap-1">
             <Package className="h-4 w-4" />
             Packing ({readyToPackParts.length})
+          </TabsTrigger>
+          <TabsTrigger value="completed">
+            Completed ({completedParts.length})
           </TabsTrigger>
           <TabsTrigger value="recuts" className="flex items-center gap-1">
             <RotateCcw className="h-4 w-4" />
@@ -346,6 +401,15 @@ export default function Home() {
             parts={readyToPackParts}
             tableMode="packing"
             onSendToRecuts={handleSendToRecuts}
+            onMarkAsComplete={handleMarkAsComplete}
+            columnConfig={columnConfig}
+          />
+        </TabsContent>
+
+        <TabsContent value="completed">
+          <PartsTable
+            parts={completedParts}
+            tableMode="completed"
             columnConfig={columnConfig}
           />
         </TabsContent>
@@ -360,5 +424,6 @@ export default function Home() {
         </TabsContent>
       </Tabs>
     </div>
+    </ErrorBoundary>
   )
 }

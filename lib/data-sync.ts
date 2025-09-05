@@ -85,14 +85,39 @@ export async function clearExistingData(): Promise<boolean> {
  * Transform MySQL record to Supabase format
  */
 function transformRecord(record: Ready2CutRecord): Ready2CutPart {
+  // Try to extract thickness from material if not separately provided
+  let extractedThickness = record.thickness;
+  let extractedType = record.type;
+  
+  if (!extractedThickness && record.material) {
+    // Try to extract thickness from material string (e.g., "18mm Medite Premier MDF")
+    const thicknessMatch = record.material.match(/^(\d+(?:\.\d+)?mm)\s+/i);
+    if (thicknessMatch) {
+      extractedThickness = thicknessMatch[1];
+    }
+  }
+  
+  if (!extractedType && record.material) {
+    // Extract type from material if not provided (e.g., "MDF", "Plywood", "Melamine", "Veneered")
+    if (record.material.includes('MDF')) {
+      extractedType = 'MDF';
+    } else if (record.material.includes('Plywood')) {
+      extractedType = 'Plywood';
+    } else if (record.material.includes('Melamine')) {
+      extractedType = 'Melamine';
+    } else if (record.material.includes('Veneered')) {
+      extractedType = 'Veneered';
+    }
+  }
+  
   return {
     ...record,
     // Ensure all null values are properly handled
     material: record.material || null,
-    type: record.type || null,
+    type: extractedType || null,
     colour: record.colour || null,
     finish: record.finish || null,
-    thickness: record.thickness || null,
+    thickness: extractedThickness || null,
     finish_2: record.finish_2 || null,
     depth: record.depth || null,
     diameter: record.diameter || null,
@@ -187,6 +212,17 @@ export async function syncReady2CutData(
     const uniqueMaterials = new Set<string>();
     const uniqueTypes = new Set<string>();
     const uniqueThicknesses = new Set<string>();
+
+    // Debug logging to see what data we're getting
+    if (transformedRecords.length > 0) {
+      console.log('Sample record for debugging:', {
+        material: transformedRecords[0].material,
+        type: transformedRecords[0].type,
+        thickness: transformedRecords[0].thickness,
+        colour: transformedRecords[0].colour,
+        finish: transformedRecords[0].finish
+      });
+    }
 
     transformedRecords.forEach(record => {
       if (record.material) uniqueMaterials.add(record.material);

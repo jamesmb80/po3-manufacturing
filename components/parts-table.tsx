@@ -32,7 +32,8 @@ interface PartsTableProps {
   onMarkAsCut?: (partIds: string[]) => Promise<void>
   onSendTo?: (partIds: string[], destination: 'edge_banding' | 'lacquering') => Promise<void>
   onSendToRecuts?: (partIds: string[]) => Promise<void>
-  tableMode?: 'ready' | 'assigned' | 'cutting' | 'processing' | 'ready_to_pack' | 'recuts' | 'edge-banding' | 'lacquering' | 'packing'
+  onMarkAsComplete?: (partIds: string[]) => Promise<void>
+  tableMode?: 'ready' | 'assigned' | 'cutting' | 'processing' | 'ready_to_pack' | 'recuts' | 'edge-banding' | 'lacquering' | 'packing' | 'completed'
   currentMachine?: 'saw' | 'router' | 'laser'
   processingType?: 'edge_band' | 'lacquer'
   columnConfig?: ColumnConfig[]
@@ -481,6 +482,30 @@ export default function PartsTable({
                 className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
               >
                 Reject/Recut
+              </button>
+            </>
+          )}
+
+          {/* Packing Actions */}
+          {tableMode === 'packing' && (
+            <>
+              <button
+                onClick={async () => {
+                  const selected = selectedIds.filter(id => parts.some(p => p.sheet_id === id))
+                  if (selected.length > 0 && props.onMarkAsComplete) {
+                    await props.onMarkAsComplete(selected)
+                    setSelectedIds([])
+                  }
+                }}
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+              >
+                Mark as Complete
+              </button>
+              <button
+                onClick={handleReject}
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+              >
+                Send to Recuts
               </button>
             </>
           )}

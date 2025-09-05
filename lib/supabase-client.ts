@@ -2,10 +2,13 @@ import { createBrowserClient } from '@supabase/ssr'
 import { Part } from '@/app/page'
 
 // Create a singleton instance of the Supabase client for the browser
-const supabase = createBrowserClient(
+export const supabaseClient = createBrowserClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
+
+// Keep internal reference for backward compatibility
+const supabase = supabaseClient
 
 // Helper functions for parts management
 export const partsApi = {

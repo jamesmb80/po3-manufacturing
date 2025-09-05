@@ -116,10 +116,10 @@ export async function fetchReady2CutData(limit: number = 3344): Promise<Ready2Cu
       
       -- Material attributes from EAV system - Try different attribute IDs
       COALESCE(material_attr.value, material_text.value, sove.item_name) as material,
-      type_attr.value as type,
+      COALESCE(type_attr.value, type_text.value) as type,
       colour_attr.value as colour,
       finish_attr.value as finish,
-      thickness_attr.value as thickness,
+      COALESCE(thickness_attr.value, thickness_text.value) as thickness,
       
       NULL as finish_2, -- Additional finish field if needed
       
@@ -149,12 +149,16 @@ export async function fetchReady2CutData(limit: number = 3344): Promise<Ready2Cu
       ON sove.entity_id = material_text.entity_id AND material_text.attribute_id = 183
     LEFT JOIN sales_order_variant_entity_varchar type_attr 
       ON sove.entity_id = type_attr.entity_id AND type_attr.attribute_id = 184
+    LEFT JOIN sales_order_variant_entity_text type_text 
+      ON sove.entity_id = type_text.entity_id AND type_text.attribute_id = 184
     LEFT JOIN sales_order_variant_entity_varchar colour_attr 
       ON sove.entity_id = colour_attr.entity_id AND colour_attr.attribute_id = 185
     LEFT JOIN sales_order_variant_entity_varchar finish_attr 
       ON sove.entity_id = finish_attr.entity_id AND finish_attr.attribute_id = 190
     LEFT JOIN sales_order_variant_entity_varchar thickness_attr 
       ON sove.entity_id = thickness_attr.entity_id AND thickness_attr.attribute_id = 189
+    LEFT JOIN sales_order_variant_entity_text thickness_text 
+      ON sove.entity_id = thickness_text.entity_id AND thickness_text.attribute_id = 189
     LEFT JOIN sales_order_variant_entity_varchar shape_attr 
       ON sove.entity_id = shape_attr.entity_id AND shape_attr.attribute_id = 159
     

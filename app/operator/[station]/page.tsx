@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Part } from '@/app/page'
 import { completeProcess, rejectPart } from '@/lib/workflow-engine'
-import { partsApi } from '@/lib/supabase-client'
+import { partsApi, supabaseClient } from '@/lib/supabase-client'
 
 type StationType = 'saw' | 'router' | 'laser' | 'edge-bander' | 'lacquering'
 
@@ -88,9 +88,30 @@ function OperatorStationContent({ station, config }: { station: StationType, con
     }
 
     loadParts()
-    // Poll for updates
-    const interval = setInterval(loadParts, 2000)
-    return () => clearInterval(interval)
+    
+    // Subscribe to real-time changes for parts with this status
+    const channel = supabaseClient
+      .channel(`operator-${config.status}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'parts',
+          filter: `processing_status=eq.${config.status}`
+        },
+        (payload) => {
+          console.log('Real-time update for operator station:', payload)
+          // Reload parts when changes occur
+          loadParts()
+        }
+      )
+      .subscribe()
+    
+    // Cleanup subscription on unmount
+    return () => {
+      supabaseClient.removeChannel(channel)
+    }
   }, [config.status])
 
   const handleProcessComplete = async (part: Part) => {
