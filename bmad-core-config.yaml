@@ -1,0 +1,165 @@
+# BMad Core Configuration for PO3 Project
+# Process Order Version 3 - Production Planning System
+
+project:
+  name: "PO3 - Process Order Version 3"
+  type: "Production Planning System"
+  version: "1.1.0"
+  description: "Manufacturing production planning system for managing part cutting operations across multiple machines"
+  status: "MVP Complete with Advanced Features"
+  last_updated: "2025-01-04"
+  
+tech_stack:
+  frontend:
+    framework: "Next.js 14"
+    language: "TypeScript"
+    ui_library: "Shadcn/ui"
+    styling: "Tailwind CSS"
+    state_management: "Zustand"
+    table_library: "Tanstack Table"
+  
+  backend:
+    database: "Supabase (PostgreSQL)"
+    api: "Next.js API Routes"
+    auth: "Supabase Auth"
+    realtime: "Supabase Realtime"
+  
+  deployment:
+    platform: "Vercel"
+    environment: "Development (Local) -> Production"
+
+features:
+  completed:
+    - "✅ View all parts in Ready to Cut table"
+    - "✅ Filter by cutting date, dispatch date, material"
+    - "✅ Select individual or multiple parts"
+    - "✅ Assign parts to Saw, Router, or Laser"
+    - "✅ View assigned parts in separate tabs"
+    - "✅ Import data from CSV/JSON"
+    - "✅ Advanced filtering by thickness, tags, type"
+    - "✅ Smart filter validation (cascading filters)"
+    - "✅ Sortable columns on all fields"
+  
+  future:
+    - "Quick filter buttons and saved filters"
+    - "Export functionality"
+    - "Search with autocomplete"
+    - "User authentication and roles"
+    - "Direct Magento API integration"
+    - "Additional machine types"
+    - "Production scheduling optimization"
+    - "Material sheet optimization"
+    - "Dimension-based filtering"
+
+data_model:
+  entities:
+    part:
+      fields:
+        - sheet_id (Part ID)
+        - increment_id (Order ID)
+        - cutting_date
+        - dispatch_date
+        - order_status
+        - shipping_name
+        - material
+        - type
+        - colour
+        - finish
+        - thickness
+        - shape
+        - length
+        - width
+        - depth
+        - tags
+        - notes
+        - machine_assignment
+        - status_updated
+    
+    machine:
+      types:
+        - Saw
+        - Router
+        - Laser
+
+user_roles:
+  primary:
+    - name: "Material Controller"
+      responsibilities:
+        - "View all parts to be cut"
+        - "Filter and sort parts"
+        - "Assign parts to machines"
+        - "Track production progress"
+    - name: "Production Planner"
+      responsibilities:
+        - "Schedule cutting operations"
+        - "Optimize machine utilization"
+        - "Monitor production flow"
+
+development_phases:
+  phase_1:
+    name: "Foundation"
+    duration: "Week 1"
+    status: "✅ COMPLETED"
+    deliverables:
+      - "✅ Project setup and configuration"
+      - "✅ Database schema and migrations"
+      - "✅ Data import utilities"
+      - "✅ Basic layout and navigation"
+  
+  phase_2:
+    name: "Core Features"
+    duration: "Week 2"
+    status: "✅ COMPLETED"
+    deliverables:
+      - "✅ Data table with sorting and pagination"
+      - "✅ Filter system implementation"
+      - "✅ Part selection functionality"
+      - "✅ Machine assignment workflow"
+      - "✅ Smart filter validation"
+      - "✅ Advanced filters (type, thickness, tags)"
+  
+  phase_3:
+    name: "User Experience"
+    duration: "Week 3"
+    status: "🔄 IN PROGRESS"
+    deliverables:
+      - "⏳ Responsive design"
+      - "⏳ Loading states and transitions"
+      - "⏳ Error handling"
+      - "✅ Performance optimization (achieved <500ms load)"
+  
+  phase_4:
+    name: "Testing & Deployment"
+    duration: "Week 4"
+    status: "📋 PENDING"
+    deliverables:
+      - "⏳ Test suite implementation"
+      - "✅ Documentation (PRD, PROJECT-STATUS)"
+      - "⏳ Deployment pipeline"
+      - "⏳ User training materials"
+
+agents:
+  active:
+    - product_manager
+    - architect
+    - fullstack_developer
+    - frontend_developer
+    - backend_developer
+    - qa_engineer
+    - devops_engineer
+
+conventions:
+  naming:
+    components: "PascalCase"
+    files: "kebab-case"
+    variables: "camelCase"
+    constants: "UPPER_SNAKE_CASE"
+    database: "snake_case"
+  
+  structure:
+    components: "src/components/{feature}/"
+    pages: "app/{route}/page.tsx"
+    api: "app/api/{endpoint}/route.ts"
+    utils: "src/lib/utils/"
+    types: "src/types/"
+    hooks: "src/hooks/"
