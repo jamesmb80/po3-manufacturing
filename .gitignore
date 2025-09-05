@@ -38,3 +38,28 @@ next-env.d.ts
 
 # turbopack
 .turbo
+
+# backup folders
+backup_*/
+/backup_*/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# log files
+*.log
+
+# temporary files
+*.tmp
+*.temp
+.tmp/
+
+# documentation archives
+/docs/archive/
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo

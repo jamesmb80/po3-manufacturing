@@ -20,26 +20,16 @@ export const defaultProcessConfig: ProcessConfiguration = {
   }
 }
 
-// Load configuration from localStorage or use default
+// Load configuration - currently returns default, can be extended to load from database
 export function loadProcessConfiguration(): ProcessConfiguration {
-  if (typeof window !== 'undefined') {
-    const saved = localStorage.getItem('processConfiguration')
-    if (saved) {
-      try {
-        return JSON.parse(saved)
-      } catch {
-        return defaultProcessConfig
-      }
-    }
-  }
+  // TODO: In future, this could load from Supabase database
   return defaultProcessConfig
 }
 
-// Save configuration to localStorage
+// Save configuration - currently a no-op, can be extended to save to database
 export function saveProcessConfiguration(config: ProcessConfiguration) {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem('processConfiguration', JSON.stringify(config))
-  }
+  // TODO: In future, this could save to Supabase database
+  console.log('Configuration save requested:', config)
 }
 
 // Parse tags from part and determine routing
