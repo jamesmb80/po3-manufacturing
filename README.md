@@ -79,10 +79,15 @@ PO3/
 │       └── tabs.tsx           # Custom tab components
 ├── lib/
 │   ├── supabase-client.ts     # Database client and API
-│   ├── workflow-engine.ts     # Core routing logic
+│   ├── workflow-engine.ts     # Core routing logic (no localStorage)
 │   ├── filter-utils.ts        # Filter validation logic
 │   ├── csv-utils.ts           # Export functionality
 │   └── utils.ts               # Utility functions
+├── docs/
+│   ├── DEPLOYMENT-GUIDE.md    # Deployment instructions
+│   └── SUPABASE-SETUP.md      # Database setup guide
+├── scripts/
+│   └── setup-database.js      # Database initialization
 ├── supabase/
 │   └── parts-table.sql        # Database schema
 ├── middleware.ts               # Authentication middleware
@@ -263,8 +268,26 @@ node scripts/setup-database.js
 
 Private project - All rights reserved
 
+## 📝 Changelog
+
+### January 5, 2025 - v1.0.1
+**Project Cleanup & Optimization**
+- 🗑️ Removed 1.5MB of backup folders (now using Git for version control)
+- 📁 Created organized `docs/` directory for documentation
+- 🔧 Removed localStorage dependencies from workflow-engine.ts
+- 📋 Consolidated duplicate documentation files
+- 🚀 Fixed deployment build errors (TypeScript and prop mismatches)
+- ✨ Updated .gitignore with comprehensive patterns
+
+### January 5, 2025 - v1.0.0
+**Production Release**
+- 🎯 Full Supabase database integration
+- 🔐 Authentication system implementation
+- 🎨 UI improvements with collapsible filters
+- 📱 Responsive design updates
+
 ---
 
 *Last Updated: January 5, 2025*  
-*Version: 1.0.0 - Production Release with Database Integration*  
+*Version: 1.0.1 - Clean Architecture with Optimizations*  
 *Repository: [github.com/jamesmb80/po3-manufacturing](https://github.com/jamesmb80/po3-manufacturing)*
