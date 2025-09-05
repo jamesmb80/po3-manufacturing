@@ -9,7 +9,6 @@ import { getAvailableOptions } from '@/lib/filter-utils'
 import { exportPartsToCSV } from '@/lib/csv-utils'
 import { completeProcess, rejectPart } from '@/lib/workflow-engine'
 import { Package, Scissors, RotateCcw } from 'lucide-react'
-import sampleData from '@/order_data_table.json'
 import { partsApi } from '@/lib/supabase-client'
 
 export type Part = {
@@ -79,55 +78,22 @@ export default function Home() {
     cuttingDateTo: '',
   })
 
-  const initializeSampleData = useCallback(async () => {
-    const partsWithAssignment: Part[] = sampleData.map(part => ({
-      ...part,
-      // Convert dimensions to strings
-      length: part.length ? String(part.length) : null,
-      width: part.width ? String(part.width) : null,
-      height: part.height ? String(part.height) : null,
-      depth: part.depth ? String(part.depth) : null,
-      diameter: part.diameter ? String(part.diameter) : null,
-      machine_assignment: null,
-      processing_status: 'ready_to_cut' as const,
-      completed_processes: [],
-      next_process: undefined
-    }))
-    
-    // Insert sample data into database
-    const success = await partsApi.bulkInsert(partsWithAssignment)
-    if (success) {
-      // Reload from database - call API directly to avoid circular dependency
-      try {
-        const data = await partsApi.getAll()
-        setParts(data)
-      } catch (error) {
-        console.error('Failed to reload parts:', error)
-      }
-    } else {
-      // Fallback to local state if database insert fails
-      setParts(partsWithAssignment)
-    }
-    setLoading(false)
-  }, [])
-
   const loadParts = useCallback(async () => {
     try {
       const data = await partsApi.getAll()
       
-      // If no data in database, initialize with sample data
-      if (data.length === 0 && loading) {
-        console.log('No parts in database, initializing with sample data...')
-        await initializeSampleData()
-      } else {
-        setParts(data)
-        setLoading(false)
+      // Always use real data from database, never fall back to sample data
+      setParts(data)
+      setLoading(false)
+      
+      if (data.length === 0) {
+        console.log('No parts in database. Please run data sync to load production data.')
       }
     } catch (error) {
       console.error('Failed to load parts:', error)
       setLoading(false)
     }
-  }, [loading, initializeSampleData])
+  }, [])
 
   // Load parts from Supabase
   useEffect(() => {

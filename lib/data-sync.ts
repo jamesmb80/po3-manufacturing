@@ -1,5 +1,4 @@
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import { createClient } from '@supabase/supabase-js';
 import { 
   fetchReady2CutData, 
   Ready2CutRecord,
@@ -57,7 +56,11 @@ export interface SyncResult {
  */
 export async function clearExistingData(): Promise<boolean> {
   try {
-    const supabase = createServerComponentClient({ cookies });
+    // Use service key client for server-side operations
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_KEY!
+    );
     
     // Delete all records from ready2cut_parts
     const { error } = await supabase
@@ -135,7 +138,11 @@ export async function syncReady2CutData(
   };
 
   try {
-    const supabase = createServerComponentClient({ cookies });
+    // Use service key client for server-side operations
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_KEY!
+    );
     
     // Test MySQL connection first
     console.log('Testing MySQL connection...');
@@ -268,7 +275,11 @@ export async function syncReady2CutData(
  */
 export async function getSyncHistory(limit: number = 10) {
   try {
-    const supabase = createServerComponentClient({ cookies });
+    // Use service key client for server-side operations
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_KEY!
+    );
     
     const { data, error } = await supabase
       .from('ready2cut_sync_log')
@@ -293,7 +304,11 @@ export async function getSyncHistory(limit: number = 10) {
  */
 export async function analyzeImportedData() {
   try {
-    const supabase = createServerComponentClient({ cookies });
+    // Use service key client for server-side operations
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_KEY!
+    );
     
     // Fetch all unique values for analysis
     const queries = [

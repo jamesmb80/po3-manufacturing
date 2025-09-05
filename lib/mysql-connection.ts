@@ -41,7 +41,7 @@ export async function initializeMySQLPool(): Promise<void> {
       ...config,
       waitForConnections: true,
       queueLimit: 0,
-      namedPlaceholders: true,
+      namedPlaceholders: false, // Use positional parameters
       dateStrings: true, // Return dates as strings to match SQL output
       timezone: '+00:00', // Use UTC
     });
@@ -114,8 +114,8 @@ export async function fetchReady2CutData(limit: number = 3344): Promise<Ready2Cu
       -- Customer name from order
       CONCAT(COALESCE(so.customer_firstname, ''), ' ', COALESCE(so.customer_lastname, '')) as shipping_name,
       
-      -- Material attributes from EAV system
-      material_attr.value as material,
+      -- Material attributes from EAV system - Try different attribute IDs
+      COALESCE(material_attr.value, material_text.value, sove.item_name) as material,
       type_attr.value as type,
       colour_attr.value as colour,
       finish_attr.value as finish,
@@ -145,6 +145,8 @@ export async function fetchReady2CutData(limit: number = 3344): Promise<Ready2Cu
     -- Material and Type Attributes (VARCHAR)
     LEFT JOIN sales_order_variant_entity_varchar material_attr 
       ON sove.entity_id = material_attr.entity_id AND material_attr.attribute_id = 183
+    LEFT JOIN sales_order_variant_entity_text material_text 
+      ON sove.entity_id = material_text.entity_id AND material_text.attribute_id = 183
     LEFT JOIN sales_order_variant_entity_varchar type_attr 
       ON sove.entity_id = type_attr.entity_id AND type_attr.attribute_id = 184
     LEFT JOIN sales_order_variant_entity_varchar colour_attr 
@@ -185,10 +187,11 @@ export async function fetchReady2CutData(limit: number = 3344): Promise<Ready2Cu
       AND so.status = 'processing'
     
     ORDER BY sove.cutting_date, sove.entity_id
-    LIMIT ?
+    LIMIT ${parseInt(limit.toString())}
   `;
 
-  return executeQuery<Ready2CutRecord>(sql, [limit]);
+  // Execute without parameters to avoid binding issues
+  return executeQuery<Ready2CutRecord>(sql, []);
 }
 
 /**
