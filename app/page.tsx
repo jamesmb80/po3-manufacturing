@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import PartsTable from '@/components/parts-table'
 import FilterPanel from '@/components/filter-panel'
@@ -54,34 +54,7 @@ export default function Home() {
     cuttingDateTo: '',
   })
 
-  // Load parts from Supabase
-  useEffect(() => {
-    loadParts()
-    
-    // Poll for updates every 5 seconds
-    const interval = setInterval(loadParts, 5000)
-    return () => clearInterval(interval)
-  }, [])
-
-  const loadParts = async () => {
-    try {
-      const data = await partsApi.getAll()
-      
-      // If no data in database, initialize with sample data
-      if (data.length === 0 && loading) {
-        console.log('No parts in database, initializing with sample data...')
-        await initializeSampleData()
-      } else {
-        setParts(data)
-      }
-    } catch (error) {
-      console.error('Failed to load parts:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const initializeSampleData = async () => {
+  const initializeSampleData = useCallback(async () => {
     const partsWithAssignment: Part[] = sampleData.map(part => ({
       ...part,
       machine_assignment: null,
@@ -93,15 +66,48 @@ export default function Home() {
     // Insert sample data into database
     const success = await partsApi.bulkInsert(partsWithAssignment)
     if (success) {
-      // Reload from database
-      await loadParts()
+      // Reload from database - call API directly to avoid circular dependency
+      try {
+        const data = await partsApi.getAll()
+        setParts(data)
+      } catch (error) {
+        console.error('Failed to reload parts:', error)
+      }
     } else {
       // Fallback to local state if database insert fails
       setParts(partsWithAssignment)
     }
-  }
+    setLoading(false)
+  }, [])
 
-  const availableOptions = useMemo(() => getAvailableOptions(parts), [parts])
+  const loadParts = useCallback(async () => {
+    try {
+      const data = await partsApi.getAll()
+      
+      // If no data in database, initialize with sample data
+      if (data.length === 0 && loading) {
+        console.log('No parts in database, initializing with sample data...')
+        await initializeSampleData()
+      } else {
+        setParts(data)
+        setLoading(false)
+      }
+    } catch (error) {
+      console.error('Failed to load parts:', error)
+      setLoading(false)
+    }
+  }, [loading, initializeSampleData])
+
+  // Load parts from Supabase
+  useEffect(() => {
+    loadParts()
+    
+    // Poll for updates every 5 seconds
+    const interval = setInterval(loadParts, 5000)
+    return () => clearInterval(interval)
+  }, [loadParts])
+
+  const availableOptions = useMemo(() => getAvailableOptions(parts, filters), [parts, filters])
 
   const filteredParts = useMemo(() => {
     return parts.filter(part => {
@@ -197,7 +203,7 @@ export default function Home() {
   }
 
   const handleExport = () => {
-    exportPartsToCSV(filteredParts)
+    exportPartsToCSV(filteredParts, 'all')
   }
 
   // Categorize parts for different views
@@ -244,8 +250,8 @@ export default function Home() {
       <FilterPanel
         filters={filters}
         setFilters={setFilters}
+        allParts={parts}
         availableOptions={availableOptions}
-        onExport={handleExport}
       />
 
       <Tabs defaultValue="ready" className="space-y-4">

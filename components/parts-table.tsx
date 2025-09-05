@@ -17,6 +17,7 @@ const columnHelper = createColumnHelper<Part>()
 
 interface PartsTableProps {
   parts: Part[]
+  // Legacy props (kept for compatibility)
   onMachineAssignment?: (parts: Part[], machine: 'saw' | 'router' | 'laser') => void
   onMoveToCutting?: (parts: Part[], machine: 'saw' | 'router' | 'laser') => void
   onMoveBackToReady?: (parts: Part[]) => void
@@ -24,8 +25,13 @@ interface PartsTableProps {
   onCuttingComplete?: (parts: Part[]) => void
   onRejectPart?: (parts: Part[]) => void
   onProcessComplete?: (parts: Part[]) => void
-  showMachineActions: boolean
-  tableMode?: 'ready' | 'assigned' | 'cutting' | 'processing' | 'ready_to_pack' | 'recuts'
+  showMachineActions?: boolean
+  // New props from page.tsx
+  onAssignToMachine?: (partIds: string[], machine: 'saw' | 'router' | 'laser') => Promise<void>
+  onMarkAsCut?: (partIds: string[]) => Promise<void>
+  onSendTo?: (partIds: string[], destination: 'edge_banding' | 'lacquering') => Promise<void>
+  onSendToRecuts?: (partIds: string[]) => Promise<void>
+  tableMode?: 'ready' | 'assigned' | 'cutting' | 'processing' | 'ready_to_pack' | 'recuts' | 'edge-banding' | 'lacquering' | 'packing'
   currentMachine?: 'saw' | 'router' | 'laser'
   processingType?: 'edge_band' | 'lacquer'
 }
@@ -56,7 +62,11 @@ export default function PartsTable({
   onCuttingComplete,
   onRejectPart,
   onProcessComplete,
-  showMachineActions, 
+  showMachineActions = false, 
+  onAssignToMachine,
+  onMarkAsCut,
+  onSendTo,
+  onSendToRecuts,
   tableMode = 'ready',
   currentMachine,
   processingType
