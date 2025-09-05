@@ -147,7 +147,7 @@ function OperatorStationContent({ station, config }: { station: StationType, con
     setTimeout(() => setMessage(''), 3000)
   }
 
-  const colorClasses = {
+  const colorClasses: Record<string, string> = {
     blue: 'bg-blue-600 hover:bg-blue-700',
     green: 'bg-green-600 hover:bg-green-700',
     purple: 'bg-purple-600 hover:bg-purple-700',
