@@ -9,6 +9,7 @@ import { exportPartsToCSV } from '@/lib/csv-utils'
 import { completeProcess, rejectPart } from '@/lib/workflow-engine'
 import { Package, Scissors, RotateCcw } from 'lucide-react'
 import sampleData from '@/order_data_table.json'
+import { partsApi } from '@/lib/supabase-client'
 
 export type Part = {
   sheet_id: string
@@ -42,6 +43,7 @@ export type Part = {
 
 export default function Home() {
   const [parts, setParts] = useState<Part[]>([])
+  const [loading, setLoading] = useState(true)
   const [filters, setFilters] = useState({
     material: [] as string[],
     orderStatus: [] as string[],
@@ -52,24 +54,34 @@ export default function Home() {
     cuttingDateTo: '',
   })
 
+  // Load parts from Supabase
   useEffect(() => {
-    // Try to load from localStorage first
-    const stored = localStorage.getItem('po3_parts')
-    if (stored) {
-      try {
-        const storedParts = JSON.parse(stored) as Part[]
-        setParts(storedParts)
-      } catch {
-        // If parse fails, load sample data
-        initializeSampleData()
-      }
-    } else {
-      // No stored data, initialize with sample data
-      initializeSampleData()
-    }
+    loadParts()
+    
+    // Poll for updates every 5 seconds
+    const interval = setInterval(loadParts, 5000)
+    return () => clearInterval(interval)
   }, [])
 
-  const initializeSampleData = () => {
+  const loadParts = async () => {
+    try {
+      const data = await partsApi.getAll()
+      
+      // If no data in database, initialize with sample data
+      if (data.length === 0 && loading) {
+        console.log('No parts in database, initializing with sample data...')
+        await initializeSampleData()
+      } else {
+        setParts(data)
+      }
+    } catch (error) {
+      console.error('Failed to load parts:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const initializeSampleData = async () => {
     const partsWithAssignment: Part[] = sampleData.map(part => ({
       ...part,
       machine_assignment: null,
@@ -77,528 +89,255 @@ export default function Home() {
       completed_processes: [],
       next_process: undefined
     }))
-    setParts(partsWithAssignment)
-  }
-
-  // Sync parts to localStorage for operator stations
-  useEffect(() => {
-    if (parts.length > 0) {
-      localStorage.setItem('po3_parts', JSON.stringify(parts))
-    }
-  }, [parts])
-
-  // Listen for storage changes from other windows (operator stations)
-  useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'po3_parts' && e.newValue) {
-        try {
-          const updatedParts = JSON.parse(e.newValue) as Part[]
-          setParts(updatedParts)
-        } catch (error) {
-          console.error('Failed to parse storage update:', error)
-        }
-      }
-    }
-
-    window.addEventListener('storage', handleStorageChange)
-    return () => window.removeEventListener('storage', handleStorageChange)
-  }, [])
-
-  const handleMachineAssignment = (selectedParts: Part[], machine: 'saw' | 'router' | 'laser') => {
-    setParts(prevParts => 
-      prevParts.map(part => 
-        selectedParts.find(sp => sp.sheet_id === part.sheet_id)
-          ? { ...part, machine_assignment: machine, processing_status: `assigned_to_${machine}` as Part['processing_status'] }
-          : part
-      )
-    )
-  }
-
-  const handleMoveToCutting = (selectedParts: Part[], machine: 'saw' | 'router' | 'laser') => {
-    // Export to CSV before moving to cutting
-    exportPartsToCSV(selectedParts, machine)
     
-    // Update to cutting status
-    setParts(prevParts => 
-      prevParts.map(part => 
-        selectedParts.find(sp => sp.sheet_id === part.sheet_id)
-          ? { ...part, processing_status: `cutting_${machine}` as Part['processing_status'] }
-          : part
-      )
-    )
-  }
-
-  const handleMoveBackToReady = (selectedParts: Part[]) => {
-    setParts(prevParts => 
-      prevParts.map(part => 
-        selectedParts.find(sp => sp.sheet_id === part.sheet_id)
-          ? { ...part, machine_assignment: null, processing_status: 'ready_to_cut', completed_processes: [] }
-          : part
-      )
-    )
-  }
-
-  const handleMoveBackToAssigned = (selectedParts: Part[]) => {
-    setParts(prevParts => 
-      prevParts.map(part => {
-        const selected = selectedParts.find(sp => sp.sheet_id === part.sheet_id)
-        if (!selected) return part
-        const machine = part.machine_assignment
-        return { ...part, processing_status: `assigned_to_${machine}` as Part['processing_status'] }
-      })
-    )
-  }
-
-  // Handle completion of cutting (routes based on tags)
-  const handleCuttingComplete = (selectedParts: Part[]) => {
-    setParts(prevParts => 
-      prevParts.map(part => {
-        const selected = selectedParts.find(sp => sp.sheet_id === part.sheet_id)
-        if (!selected) return part
-        return completeProcess(part, 'cutting')
-      })
-    )
-  }
-
-  // Handle rejection of parts
-  const handleRejectPart = (selectedParts: Part[]) => {
-    setParts(prevParts => 
-      prevParts.map(part => {
-        const selected = selectedParts.find(sp => sp.sheet_id === part.sheet_id)
-        if (!selected) return part
-        return rejectPart(part)
-      })
-    )
-  }
-
-  // Handle edge band completion
-  const handleEdgeBandComplete = (selectedParts: Part[]) => {
-    setParts(prevParts => 
-      prevParts.map(part => {
-        const selected = selectedParts.find(sp => sp.sheet_id === part.sheet_id)
-        if (!selected) return part
-        return completeProcess(part, 'edge_banding')
-      })
-    )
-  }
-
-  // Handle lacquer completion  
-  const handleLacquerComplete = (selectedParts: Part[]) => {
-    setParts(prevParts => 
-      prevParts.map(part => {
-        const selected = selectedParts.find(sp => sp.sheet_id === part.sheet_id)
-        if (!selected) return part
-        return completeProcess(part, 'lacquering')
-      })
-    )
-  }
-
-  // Helper function to parse date strings
-  const parseDate = (dateStr: string) => {
-    // Parse "01 Sep 2025" format
-    const months: { [key: string]: number } = {
-      'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'May': 4, 'Jun': 5,
-      'Jul': 6, 'Aug': 7, 'Sep': 8, 'Oct': 9, 'Nov': 10, 'Dec': 11
+    // Insert sample data into database
+    const success = await partsApi.bulkInsert(partsWithAssignment)
+    if (success) {
+      // Reload from database
+      await loadParts()
+    } else {
+      // Fallback to local state if database insert fails
+      setParts(partsWithAssignment)
     }
-    const parts = dateStr.split(' ')
-    if (parts.length === 3) {
-      const day = parseInt(parts[0])
-      const month = months[parts[1]]
-      const year = parseInt(parts[2])
-      return new Date(year, month, day)
-    }
-    return null
   }
 
-  // Filter parts based on all active filters
-  const filterParts = (partsToFilter: Part[]) => {
-    return partsToFilter.filter(part => {
-      // Material filter
-      if (filters.material.length > 0 && !filters.material.includes(part.material)) {
-        return false
-      }
+  const availableOptions = useMemo(() => getAvailableOptions(parts), [parts])
 
-      // Order status filter
-      if (filters.orderStatus.length > 0 && !filters.orderStatus.includes(part.order_status)) {
-        return false
-      }
-
-      // Type filter
-      if (filters.type.length > 0) {
-        if (part.type === null && !filters.type.includes('None')) {
-          return false
-        }
-        if (part.type !== null && !filters.type.includes(part.type)) {
-          return false
-        }
-      }
-
-      // Thickness filter
-      if (filters.thickness.length > 0 && !filters.thickness.includes(part.thickness)) {
-        return false
-      }
-
-      // Tags filter - handle comma-separated tags
-      if (filters.tags.length > 0) {
-        const partTags = part.tags ? part.tags.split(',').map(t => t.trim()) : []
-        const hasMatchingTag = filters.tags.some(filterTag => 
-          partTags.some(partTag => partTag.includes(filterTag))
-        )
-        if (!hasMatchingTag) {
-          return false
-        }
-      }
-
-      // Date range filter
-      if (filters.cuttingDateFrom || filters.cuttingDateTo) {
-        const partDate = parseDate(part.cutting_date)
-        if (partDate) {
-          if (filters.cuttingDateFrom) {
-            const fromDate = new Date(filters.cuttingDateFrom)
-            if (partDate < fromDate) return false
-          }
-          if (filters.cuttingDateTo) {
-            const toDate = new Date(filters.cuttingDateTo)
-            if (partDate > toDate) return false
-          }
-        }
-      }
-
+  const filteredParts = useMemo(() => {
+    return parts.filter(part => {
+      if (filters.material.length > 0 && !filters.material.includes(part.material)) return false
+      if (filters.orderStatus.length > 0 && !filters.orderStatus.includes(part.order_status)) return false
+      if (filters.type.length > 0 && part.type && !filters.type.includes(part.type)) return false
+      if (filters.thickness.length > 0 && !filters.thickness.includes(part.thickness)) return false
+      if (filters.tags.length > 0 && !filters.tags.some(tag => part.tags?.includes(tag))) return false
+      if (filters.cuttingDateFrom && part.cutting_date < filters.cuttingDateFrom) return false
+      if (filters.cuttingDateTo && part.cutting_date > filters.cuttingDateTo) return false
       return true
     })
-  }
-
-  // Filter parts based on processing status
-  const readyToCutParts = filterParts(parts.filter(p => p.processing_status === 'ready_to_cut'))
-  const assignedSawParts = filterParts(parts.filter(p => p.processing_status === 'assigned_to_saw'))
-  const cuttingSawParts = filterParts(parts.filter(p => p.processing_status === 'cutting_saw'))
-  const assignedRouterParts = filterParts(parts.filter(p => p.processing_status === 'assigned_to_router'))
-  const cuttingRouterParts = filterParts(parts.filter(p => p.processing_status === 'cutting_router'))
-  const assignedLaserParts = filterParts(parts.filter(p => p.processing_status === 'assigned_to_laser'))
-  const cuttingLaserParts = filterParts(parts.filter(p => p.processing_status === 'cutting_laser'))
-  const partsToEdgeBand = filterParts(parts.filter(p => p.processing_status === 'parts_to_edge_band'))
-  const partsToLacquer = filterParts(parts.filter(p => p.processing_status === 'parts_to_lacquer'))
-  const readyToPackParts = filterParts(parts.filter(p => p.processing_status === 'ready_to_pack'))
-  const recutsParts = filterParts(parts.filter(p => p.processing_status === 'recuts'))
-
-  // Calculate available options based on current filters
-  const availableOptions = useMemo(() => {
-    return getAvailableOptions(parts.filter(p => p.processing_status === 'ready_to_cut'), filters)
   }, [parts, filters])
 
-  return (
-    <div className="container mx-auto p-4">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">PO3 - Process Order System</h1>
-        <div className="flex gap-2">
-          <button
-            onClick={() => {
-              initializeSampleData()
-              localStorage.removeItem('po3_parts')
-            }}
-            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-          >
-            Reset Data
-          </button>
-          <a
-            href="/admin"
-            className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
-          >
-            Admin Panel
-          </a>
-          <div className="relative group">
-            <button
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              Operator Stations ▼
-            </button>
-            <div className="absolute right-0 mt-1 w-48 bg-white shadow-lg rounded-lg hidden group-hover:block z-10">
-              <button
-                onClick={() => window.open('/operator/saw', '_blank')}
-                className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-              >
-                Saw Station
-              </button>
-              <button
-                onClick={() => window.open('/operator/router', '_blank')}
-                className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-              >
-                Router Station
-              </button>
-              <button
-                onClick={() => window.open('/operator/laser', '_blank')}
-                className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-              >
-                Laser Station
-              </button>
-              <button
-                onClick={() => window.open('/operator/edge-bander', '_blank')}
-                className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-              >
-                Edge Bander Station
-              </button>
-              <button
-                onClick={() => window.open('/operator/lacquering', '_blank')}
-                className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-              >
-                Lacquering Station
-              </button>
-            </div>
-          </div>
-        </div>
+  const handleAssignToMachine = async (partIds: string[], machine: 'saw' | 'router' | 'laser') => {
+    const updatedParts = parts.map(part => {
+      if (partIds.includes(part.sheet_id)) {
+        let newStatus: Part['processing_status']
+        switch (machine) {
+          case 'saw':
+            newStatus = 'assigned_to_saw'
+            break
+          case 'router':
+            newStatus = 'assigned_to_router'
+            break
+          case 'laser':
+            newStatus = 'assigned_to_laser'
+            break
+        }
+        return {
+          ...part,
+          machine_assignment: machine,
+          processing_status: newStatus
+        }
+      }
+      return part
+    })
+    
+    // Update in database
+    const partsToUpdate = updatedParts.filter(p => partIds.includes(p.sheet_id))
+    await partsApi.updateMany(partsToUpdate)
+    
+    setParts(updatedParts)
+  }
+
+  const handleMarkAsCut = async (partIds: string[]) => {
+    const updatedParts = parts.map(part => {
+      if (partIds.includes(part.sheet_id)) {
+        return completeProcess(part, 'cutting')
+      }
+      return part
+    })
+    
+    // Update in database
+    const partsToUpdate = updatedParts.filter(p => partIds.includes(p.sheet_id))
+    await partsApi.updateMany(partsToUpdate)
+    
+    setParts(updatedParts)
+  }
+
+  const handleSendTo = async (partIds: string[], destination: 'edge_banding' | 'lacquering') => {
+    const updatedParts = parts.map(part => {
+      if (partIds.includes(part.sheet_id)) {
+        const newStatus = destination === 'edge_banding' ? 'parts_to_edge_band' : 'parts_to_lacquer'
+        return {
+          ...part,
+          processing_status: newStatus as Part['processing_status']
+        }
+      }
+      return part
+    })
+    
+    // Update in database
+    const partsToUpdate = updatedParts.filter(p => partIds.includes(p.sheet_id))
+    await partsApi.updateMany(partsToUpdate)
+    
+    setParts(updatedParts)
+  }
+
+  const handleSendToRecuts = async (partIds: string[]) => {
+    const updatedParts = parts.map(part => {
+      if (partIds.includes(part.sheet_id)) {
+        return rejectPart(part)
+      }
+      return part
+    })
+    
+    // Update in database
+    const partsToUpdate = updatedParts.filter(p => partIds.includes(p.sheet_id))
+    await partsApi.updateMany(partsToUpdate)
+    
+    setParts(updatedParts)
+  }
+
+  const handleExport = () => {
+    exportPartsToCSV(filteredParts)
+  }
+
+  // Categorize parts for different views
+  const readyToCutParts = filteredParts.filter(p => 
+    p.processing_status === 'ready_to_cut'
+  )
+  
+  const assignedParts = filteredParts.filter(p => 
+    p.processing_status?.includes('assigned_to_')
+  )
+  
+  const cuttingParts = filteredParts.filter(p => 
+    p.processing_status?.includes('cutting_')
+  )
+
+  const partsToEdgeBand = filteredParts.filter(p => 
+    p.processing_status === 'parts_to_edge_band'
+  )
+
+  const partsToLacquer = filteredParts.filter(p => 
+    p.processing_status === 'parts_to_lacquer'
+  )
+
+  const readyToPackParts = filteredParts.filter(p => 
+    p.processing_status === 'ready_to_pack'
+  )
+
+  const recutParts = filteredParts.filter(p => 
+    p.processing_status === 'recuts'
+  )
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-lg">Loading parts...</div>
       </div>
+    )
+  }
+
+  return (
+    <div className="container mx-auto p-4 space-y-4">
+      <h1 className="text-3xl font-bold mb-4">PO3 Manufacturing Control System</h1>
       
-      <Tabs defaultValue="ready" className="w-full">
-        <TabsList className="mb-4 flex-wrap h-auto p-1 gap-1 bg-gray-50 rounded-lg">
-          {/* Initial Stage */}
-          <div className="flex gap-1 pr-2 border-r border-gray-300">
-            <TabsTrigger value="ready" className="data-[state=active]:bg-blue-500 data-[state=active]:text-white text-sm px-3 py-1.5">
-              <Scissors className="w-3 h-3 mr-1 inline-block" />
-              Ready <span className="ml-1 font-semibold">{readyToCutParts.length}</span>
-            </TabsTrigger>
-          </div>
-          
-          {/* Saw Machine Group */}
-          <div className="flex gap-1 pr-2 border-r border-gray-300">
-            <TabsTrigger value="assigned-saw" className="data-[state=active]:bg-yellow-500 data-[state=active]:text-white text-sm px-3 py-1.5">
-              <span className="hidden sm:inline">Assigned</span> Saw <span className="ml-1 font-semibold">{assignedSawParts.length}</span>
-            </TabsTrigger>
-            <TabsTrigger value="cutting-saw" className="data-[state=active]:bg-green-500 data-[state=active]:text-white text-sm px-3 py-1.5">
-              <span className="hidden sm:inline">Cutting</span> Saw <span className="ml-1 font-semibold">{cuttingSawParts.length}</span>
-            </TabsTrigger>
-          </div>
-          
-          {/* Router Machine Group */}
-          <div className="flex gap-1 pr-2 border-r border-gray-300">
-            <TabsTrigger value="assigned-router" className="data-[state=active]:bg-yellow-500 data-[state=active]:text-white text-sm px-3 py-1.5">
-              <span className="hidden sm:inline">Assigned</span> Router <span className="ml-1 font-semibold">{assignedRouterParts.length}</span>
-            </TabsTrigger>
-            <TabsTrigger value="cutting-router" className="data-[state=active]:bg-green-500 data-[state=active]:text-white text-sm px-3 py-1.5">
-              <span className="hidden sm:inline">Cutting</span> Router <span className="ml-1 font-semibold">{cuttingRouterParts.length}</span>
-            </TabsTrigger>
-          </div>
-          
-          {/* Laser Machine Group */}
-          <div className="flex gap-1 pr-2 border-r border-gray-300">
-            <TabsTrigger value="assigned-laser" className="data-[state=active]:bg-yellow-500 data-[state=active]:text-white text-sm px-3 py-1.5">
-              <span className="hidden sm:inline">Assigned</span> Laser <span className="ml-1 font-semibold">{assignedLaserParts.length}</span>
-            </TabsTrigger>
-            <TabsTrigger value="cutting-laser" className="data-[state=active]:bg-green-500 data-[state=active]:text-white text-sm px-3 py-1.5">
-              <span className="hidden sm:inline">Cutting</span> Laser <span className="ml-1 font-semibold">{cuttingLaserParts.length}</span>
-            </TabsTrigger>
-          </div>
-          
-          {/* Post-Processing Group */}
-          <div className="flex gap-1 pr-2 border-r border-gray-300">
-            <TabsTrigger value="edge-band" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white text-sm px-3 py-1.5">
-              Edge Band <span className="ml-1 font-semibold">{partsToEdgeBand.length}</span>
-            </TabsTrigger>
-            <TabsTrigger value="lacquer" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white text-sm px-3 py-1.5">
-              Lacquer <span className="ml-1 font-semibold">{partsToLacquer.length}</span>
-            </TabsTrigger>
-          </div>
-          
-          {/* Final Stages */}
-          <div className="flex gap-1">
-            <TabsTrigger value="ready-pack" className="data-[state=active]:bg-orange-500 data-[state=active]:text-white text-sm px-3 py-1.5">
-              <Package className="w-3 h-3 mr-1 inline-block" />
-              <span className="hidden sm:inline">Ready to Pack</span>
-              <span className="inline sm:hidden">Pack</span>
-              <span className="ml-1 font-semibold">{readyToPackParts.length}</span>
-            </TabsTrigger>
-            <TabsTrigger value="recuts" className="data-[state=active]:bg-red-500 data-[state=active]:text-white text-sm px-3 py-1.5">
-              <RotateCcw className="w-3 h-3 mr-1 inline-block" />
-              Recuts <span className="ml-1 font-semibold">{recutsParts.length}</span>
-            </TabsTrigger>
-          </div>
+      <FilterPanel
+        filters={filters}
+        setFilters={setFilters}
+        availableOptions={availableOptions}
+        onExport={handleExport}
+      />
+
+      <Tabs defaultValue="ready" className="space-y-4">
+        <TabsList className="grid grid-cols-7 w-full">
+          <TabsTrigger value="ready" className="flex items-center gap-1">
+            <Scissors className="h-4 w-4" />
+            Ready ({readyToCutParts.length})
+          </TabsTrigger>
+          <TabsTrigger value="assigned">
+            Assigned ({assignedParts.length})
+          </TabsTrigger>
+          <TabsTrigger value="cutting">
+            Cutting ({cuttingParts.length})
+          </TabsTrigger>
+          <TabsTrigger value="edge-banding">
+            Edge Banding ({partsToEdgeBand.length})
+          </TabsTrigger>
+          <TabsTrigger value="lacquering">
+            Lacquering ({partsToLacquer.length})
+          </TabsTrigger>
+          <TabsTrigger value="packing" className="flex items-center gap-1">
+            <Package className="h-4 w-4" />
+            Packing ({readyToPackParts.length})
+          </TabsTrigger>
+          <TabsTrigger value="recuts" className="flex items-center gap-1">
+            <RotateCcw className="h-4 w-4" />
+            Recuts ({recutParts.length})
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="ready" className="space-y-4">
-          <FilterPanel 
-            filters={filters} 
-            setFilters={setFilters} 
-            allParts={parts.filter(p => p.processing_status === 'ready_to_cut')}
-            availableOptions={availableOptions}
-          />
-          <PartsTable 
-            parts={readyToCutParts} 
-            onMachineAssignment={handleMachineAssignment}
-            showMachineActions={true}
+        <TabsContent value="ready">
+          <PartsTable
+            parts={readyToCutParts}
             tableMode="ready"
+            onAssignToMachine={handleAssignToMachine}
+            onMarkAsCut={handleMarkAsCut}
+            onSendTo={handleSendTo}
+            onSendToRecuts={handleSendToRecuts}
           />
         </TabsContent>
 
-        <TabsContent value="assigned-saw" className="space-y-4">
-          <FilterPanel 
-            filters={filters} 
-            setFilters={setFilters} 
-            allParts={parts.filter(p => p.processing_status === 'assigned_to_saw')}
-            availableOptions={availableOptions}
-          />
-          <PartsTable 
-            parts={assignedSawParts} 
-            onMachineAssignment={handleMachineAssignment}
-            onMoveToCutting={handleMoveToCutting}
-            onMoveBackToReady={handleMoveBackToReady}
-            showMachineActions={false}
+        <TabsContent value="assigned">
+          <PartsTable
+            parts={assignedParts}
             tableMode="assigned"
-            currentMachine="saw"
+            onMarkAsCut={handleMarkAsCut}
+            onSendTo={handleSendTo}
+            onSendToRecuts={handleSendToRecuts}
           />
         </TabsContent>
 
-        <TabsContent value="cutting-saw" className="space-y-4">
-          <FilterPanel 
-            filters={filters} 
-            setFilters={setFilters} 
-            allParts={parts.filter(p => p.processing_status === 'cutting_saw')}
-            availableOptions={availableOptions}
-          />
-          <PartsTable 
-            parts={cuttingSawParts} 
-            onMachineAssignment={handleMachineAssignment}
-            onMoveBackToAssigned={handleMoveBackToAssigned}
-            onCuttingComplete={handleCuttingComplete}
-            onRejectPart={handleRejectPart}
-            showMachineActions={false}
+        <TabsContent value="cutting">
+          <PartsTable
+            parts={cuttingParts}
             tableMode="cutting"
-            currentMachine="saw"
+            onMarkAsCut={handleMarkAsCut}
+            onSendTo={handleSendTo}
+            onSendToRecuts={handleSendToRecuts}
           />
         </TabsContent>
 
-        <TabsContent value="assigned-router" className="space-y-4">
-          <FilterPanel 
-            filters={filters} 
-            setFilters={setFilters} 
-            allParts={parts.filter(p => p.processing_status === 'assigned_to_router')}
-            availableOptions={availableOptions}
-          />
-          <PartsTable 
-            parts={assignedRouterParts} 
-            onMachineAssignment={handleMachineAssignment}
-            onMoveToCutting={handleMoveToCutting}
-            onMoveBackToReady={handleMoveBackToReady}
-            showMachineActions={false}
-            tableMode="assigned"
-            currentMachine="router"
+        <TabsContent value="edge-banding">
+          <PartsTable
+            parts={partsToEdgeBand}
+            tableMode="edge-banding"
+            onSendTo={handleSendTo}
+            onSendToRecuts={handleSendToRecuts}
           />
         </TabsContent>
 
-        <TabsContent value="cutting-router" className="space-y-4">
-          <FilterPanel 
-            filters={filters} 
-            setFilters={setFilters} 
-            allParts={parts.filter(p => p.processing_status === 'cutting_router')}
-            availableOptions={availableOptions}
-          />
-          <PartsTable 
-            parts={cuttingRouterParts} 
-            onMachineAssignment={handleMachineAssignment}
-            onMoveBackToAssigned={handleMoveBackToAssigned}
-            onCuttingComplete={handleCuttingComplete}
-            onRejectPart={handleRejectPart}
-            showMachineActions={false}
-            tableMode="cutting"
-            currentMachine="router"
+        <TabsContent value="lacquering">
+          <PartsTable
+            parts={partsToLacquer}
+            tableMode="lacquering"
+            onSendTo={handleSendTo}
+            onSendToRecuts={handleSendToRecuts}
           />
         </TabsContent>
 
-        <TabsContent value="assigned-laser" className="space-y-4">
-          <FilterPanel 
-            filters={filters} 
-            setFilters={setFilters} 
-            allParts={parts.filter(p => p.processing_status === 'assigned_to_laser')}
-            availableOptions={availableOptions}
-          />
-          <PartsTable 
-            parts={assignedLaserParts} 
-            onMachineAssignment={handleMachineAssignment}
-            onMoveToCutting={handleMoveToCutting}
-            onMoveBackToReady={handleMoveBackToReady}
-            showMachineActions={false}
-            tableMode="assigned"
-            currentMachine="laser"
+        <TabsContent value="packing">
+          <PartsTable
+            parts={readyToPackParts}
+            tableMode="packing"
+            onSendToRecuts={handleSendToRecuts}
           />
         </TabsContent>
 
-        <TabsContent value="cutting-laser" className="space-y-4">
-          <FilterPanel 
-            filters={filters} 
-            setFilters={setFilters} 
-            allParts={parts.filter(p => p.processing_status === 'cutting_laser')}
-            availableOptions={availableOptions}
-          />
-          <PartsTable 
-            parts={cuttingLaserParts} 
-            onMachineAssignment={handleMachineAssignment}
-            onMoveBackToAssigned={handleMoveBackToAssigned}
-            onCuttingComplete={handleCuttingComplete}
-            onRejectPart={handleRejectPart}
-            showMachineActions={false}
-            tableMode="cutting"
-            currentMachine="laser"
-          />
-        </TabsContent>
-
-        <TabsContent value="edge-band" className="space-y-4">
-          <FilterPanel 
-            filters={filters} 
-            setFilters={setFilters} 
-            allParts={parts.filter(p => p.processing_status === 'parts_to_edge_band')}
-            availableOptions={availableOptions}
-          />
-          <PartsTable 
-            parts={partsToEdgeBand} 
-            onProcessComplete={handleEdgeBandComplete}
-            onRejectPart={handleRejectPart}
-            showMachineActions={false}
-            tableMode="processing"
-            processingType="edge_band"
-          />
-        </TabsContent>
-
-        <TabsContent value="lacquer" className="space-y-4">
-          <FilterPanel 
-            filters={filters} 
-            setFilters={setFilters} 
-            allParts={parts.filter(p => p.processing_status === 'parts_to_lacquer')}
-            availableOptions={availableOptions}
-          />
-          <PartsTable 
-            parts={partsToLacquer} 
-            onProcessComplete={handleLacquerComplete}
-            onRejectPart={handleRejectPart}
-            showMachineActions={false}
-            tableMode="processing"
-            processingType="lacquer"
-          />
-        </TabsContent>
-
-        <TabsContent value="ready-pack" className="space-y-4">
-          <FilterPanel 
-            filters={filters} 
-            setFilters={setFilters} 
-            allParts={parts.filter(p => p.processing_status === 'ready_to_pack')}
-            availableOptions={availableOptions}
-          />
-          <PartsTable 
-            parts={readyToPackParts} 
-            showMachineActions={false}
-            tableMode="ready_to_pack"
-          />
-        </TabsContent>
-
-        <TabsContent value="recuts" className="space-y-4">
-          <FilterPanel 
-            filters={filters} 
-            setFilters={setFilters} 
-            allParts={parts.filter(p => p.processing_status === 'recuts')}
-            availableOptions={availableOptions}
-          />
-          <PartsTable 
-            parts={recutsParts} 
-            onMoveBackToReady={handleMoveBackToReady}
-            showMachineActions={false}
+        <TabsContent value="recuts">
+          <PartsTable
+            parts={recutParts}
             tableMode="recuts"
+            onAssignToMachine={handleAssignToMachine}
           />
         </TabsContent>
       </Tabs>

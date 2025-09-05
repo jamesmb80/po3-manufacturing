@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Part } from '@/app/page'
-import sampleData from '@/order_data_table.json'
 import { completeProcess, rejectPart } from '@/lib/workflow-engine'
+import { partsApi } from '@/lib/supabase-client'
 
 type StationType = 'saw' | 'router' | 'laser' | 'edge-bander' | 'lacquering'
 
@@ -76,23 +76,14 @@ function OperatorStationContent({ station, config }: { station: StationType, con
   const [message, setMessage] = useState('')
 
   useEffect(() => {
-    // In a real app, this would fetch from an API
-    // For now, load from localStorage to sync with main app
-    const loadParts = () => {
-      const stored = localStorage.getItem('po3_parts')
-      if (stored) {
-        const allParts = JSON.parse(stored) as Part[]
+    // Load parts from Supabase
+    const loadParts = async () => {
+      try {
+        const allParts = await partsApi.getAll()
         const stationParts = allParts.filter(p => p.processing_status === config.status)
         setParts(stationParts)
-      } else {
-        // Initialize from sample data if no localStorage
-        const partsWithStatus = sampleData.map(part => ({
-          ...part,
-          processing_status: 'ready_to_cut' as const,
-          completed_processes: [],
-          machine_assignment: null
-        })) as Part[]
-        setParts(partsWithStatus.filter(p => p.processing_status === config.status))
+      } catch (error) {
+        console.error('Failed to load parts:', error)
       }
     }
 
@@ -102,20 +93,13 @@ function OperatorStationContent({ station, config }: { station: StationType, con
     return () => clearInterval(interval)
   }, [config.status])
 
-  const handleProcessComplete = (part: Part) => {
+  const handleProcessComplete = async (part: Part) => {
     if (!config.processType) return
     
     const updatedPart = completeProcess(part, config.processType)
     
-    // Update localStorage (in real app, would call API)
-    const stored = localStorage.getItem('po3_parts')
-    if (stored) {
-      const allParts = JSON.parse(stored) as Part[]
-      const updatedParts = allParts.map(p => 
-        p.sheet_id === part.sheet_id ? updatedPart : p
-      )
-      localStorage.setItem('po3_parts', JSON.stringify(updatedParts))
-    }
+    // Update in database
+    await partsApi.update(part.sheet_id, updatedPart)
 
     // Remove from local view
     setParts(parts.filter(p => p.sheet_id !== part.sheet_id))
@@ -123,18 +107,11 @@ function OperatorStationContent({ station, config }: { station: StationType, con
     showMessage(`Part ${part.sheet_id} processed successfully`)
   }
 
-  const handleReject = (part: Part) => {
+  const handleReject = async (part: Part) => {
     const updatedPart = rejectPart(part)
     
-    // Update localStorage
-    const stored = localStorage.getItem('po3_parts')
-    if (stored) {
-      const allParts = JSON.parse(stored) as Part[]
-      const updatedParts = allParts.map(p => 
-        p.sheet_id === part.sheet_id ? updatedPart : p
-      )
-      localStorage.setItem('po3_parts', JSON.stringify(updatedParts))
-    }
+    // Update in database
+    await partsApi.update(part.sheet_id, updatedPart)
 
     // Remove from local view
     setParts(parts.filter(p => p.sheet_id !== part.sheet_id))
