@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation'
 import { auth } from '@/lib/supabase'
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('james@example.com')
-  const [password, setPassword] = useState('password')
+  const [email, setEmail] = useState('admin@test.com')
+  const [password, setPassword] = useState('test123')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
@@ -17,9 +17,11 @@ export default function LoginPage() {
     setError(null)
 
     try {
-      await auth.signIn(email, password)
+      const result = await auth.signIn(email, password)
+      console.log('Login successful:', result)
       router.push('/admin')
     } catch (err: any) {
+      console.error('Login error:', err)
       setError(err.message || 'Failed to sign in')
     } finally {
       setLoading(false)

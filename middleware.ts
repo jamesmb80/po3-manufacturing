@@ -7,7 +7,7 @@ export async function middleware(req: NextRequest) {
   const pathname = req.nextUrl.pathname
 
   // Skip middleware for login page and public assets
-  if (pathname === '/login' || pathname.startsWith('/_next') || pathname.startsWith('/favicon')) {
+  if (pathname === '/login' || pathname === '/' || pathname.startsWith('/_next') || pathname.startsWith('/favicon')) {
     return res
   }
 
