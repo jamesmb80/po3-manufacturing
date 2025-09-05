@@ -36,7 +36,7 @@ export default function FilterPanel({ filters, setFilters, allParts, availableOp
     const materials = [...new Set(allParts.map(p => p.material))].sort()
     const statuses = [...new Set(allParts.map(p => p.order_status))].sort()
     const types = [...new Set(allParts.map(p => p.type || 'None'))].sort()
-    const thicknesses = [...new Set(allParts.map(p => p.thickness))].sort((a, b) => {
+    const thicknesses = [...new Set(allParts.map(p => p.thickness).filter((t): t is string => Boolean(t)))].sort((a, b) => {
       // Sort thickness numerically
       const aNum = parseInt(a)
       const bNum = parseInt(b)

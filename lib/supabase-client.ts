@@ -9,12 +9,12 @@ const supabase = createBrowserClient(
 
 // Helper functions for parts management
 export const partsApi = {
-  // Get all parts
+  // Get all parts from ready2cut_parts table
   async getAll(): Promise<Part[]> {
     const { data, error } = await supabase
-      .from('parts')
+      .from('ready2cut_parts')
       .select('*')
-      .order('created_at', { ascending: false })
+      .order('cutting_date', { ascending: false })
     
     if (error) {
       console.error('Error fetching parts:', error)
@@ -27,7 +27,7 @@ export const partsApi = {
   // Create a new part
   async create(part: Omit<Part, 'id'>): Promise<Part | null> {
     const { data, error } = await supabase
-      .from('parts')
+      .from('ready2cut_parts')
       .insert(part)
       .select()
       .single()
@@ -43,7 +43,7 @@ export const partsApi = {
   // Update a part
   async update(sheet_id: string, updates: Partial<Part>): Promise<Part | null> {
     const { data, error } = await supabase
-      .from('parts')
+      .from('ready2cut_parts')
       .update(updates)
       .eq('sheet_id', sheet_id)
       .select()
@@ -62,7 +62,7 @@ export const partsApi = {
     // Update each part individually (Supabase doesn't support bulk updates well)
     const promises = parts.map(part => 
       supabase
-        .from('parts')
+        .from('ready2cut_parts')
         .upsert(part, { onConflict: 'sheet_id' })
     )
     
@@ -80,7 +80,7 @@ export const partsApi = {
   // Delete a part
   async delete(sheet_id: string): Promise<boolean> {
     const { error } = await supabase
-      .from('parts')
+      .from('ready2cut_parts')
       .delete()
       .eq('sheet_id', sheet_id)
     
@@ -95,7 +95,7 @@ export const partsApi = {
   // Bulk insert for initial data
   async bulkInsert(parts: Omit<Part, 'id'>[]): Promise<boolean> {
     const { error } = await supabase
-      .from('parts')
+      .from('ready2cut_parts')
       .insert(parts)
     
     if (error) {

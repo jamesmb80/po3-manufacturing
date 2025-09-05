@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
   createColumnHelper,
   flexRender,
@@ -12,6 +12,7 @@ import {
 } from '@tanstack/react-table'
 import { ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react'
 import { Part } from '@/app/page'
+import { ColumnConfig } from '@/components/column-visibility'
 
 const columnHelper = createColumnHelper<Part>()
 
@@ -34,6 +35,7 @@ interface PartsTableProps {
   tableMode?: 'ready' | 'assigned' | 'cutting' | 'processing' | 'ready_to_pack' | 'recuts' | 'edge-banding' | 'lacquering' | 'packing'
   currentMachine?: 'saw' | 'router' | 'laser'
   processingType?: 'edge_band' | 'lacquer'
+  columnConfig?: ColumnConfig[]
 }
 
 // Helper function to parse date strings for sorting
@@ -69,7 +71,8 @@ export default function PartsTable({
   onSendToRecuts,
   tableMode = 'ready',
   currentMachine,
-  processingType
+  processingType,
+  columnConfig
 }: PartsTableProps) {
   const [sorting, setSorting] = useState<SortingState>([])
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set())
@@ -207,23 +210,40 @@ export default function PartsTable({
       header: 'Type',
       cell: info => info.getValue() || '-',
     }),
+    columnHelper.accessor('colour', {
+      header: 'Colour',
+      cell: info => info.getValue() || '-',
+    }),
+    columnHelper.accessor('finish', {
+      header: 'Finish',
+      cell: info => info.getValue() || '-',
+    }),
     columnHelper.accessor('thickness', {
       header: 'Thickness',
-      cell: info => info.getValue(),
+      cell: info => info.getValue() || '-',
       sortingFn: (rowA, rowB) => {
-        // Sort thickness numerically
-        const a = parseInt(rowA.original.thickness)
-        const b = parseInt(rowB.original.thickness)
+        // Sort thickness numerically (handle mm suffix)
+        const parseThickness = (val: string | null) => {
+          if (!val) return 0
+          return parseFloat(val.replace('mm', ''))
+        }
+        const a = parseThickness(rowA.original.thickness)
+        const b = parseThickness(rowB.original.thickness)
         return a - b
       },
+    }),
+    columnHelper.accessor('shape', {
+      header: 'Shape',
+      cell: info => info.getValue() || 'rectangle',
     }),
     columnHelper.accessor('length', {
       header: 'Length',
       cell: info => info.getValue() || '-',
       sortingFn: (rowA, rowB) => {
-        // Sort numerically, handle null values
-        const a = rowA.original.length || 0
-        const b = rowB.original.length || 0
+        // Sort numerically, handle null values and string format
+        const parseValue = (val: string | null) => val ? parseFloat(val) : 0
+        const a = parseValue(rowA.original.length)
+        const b = parseValue(rowB.original.length)
         return a - b
       },
     }),
@@ -231,9 +251,10 @@ export default function PartsTable({
       header: 'Width',
       cell: info => info.getValue() || '-',
       sortingFn: (rowA, rowB) => {
-        // Sort numerically, handle null values
-        const a = rowA.original.width || 0
-        const b = rowB.original.width || 0
+        // Sort numerically, handle null values and string format
+        const parseValue = (val: string | null) => val ? parseFloat(val) : 0
+        const a = parseValue(rowA.original.width)
+        const b = parseValue(rowB.original.width)
         return a - b
       },
     }),
@@ -268,9 +289,23 @@ export default function PartsTable({
     }))
   }
 
+  // Filter columns based on visibility configuration
+  const visibleColumns = useMemo(() => {
+    if (!columnConfig) return columns
+    
+    const visibleIds = new Set(
+      columnConfig.filter(col => col.visible).map(col => col.id)
+    )
+    
+    return columns.filter(col => {
+      const columnId = col.id || (col as any).accessorKey
+      return visibleIds.has(columnId)
+    })
+  }, [columns, columnConfig])
+
   const table = useReactTable({
     data: parts,
-    columns,
+    columns: visibleColumns,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),

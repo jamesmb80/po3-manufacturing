@@ -60,7 +60,7 @@ export function getAvailableOptions(
         : currentFilters.type.includes(part.type)
       if (!typeMatch) return false
     }
-    if (currentFilters.thickness.length > 0 && !currentFilters.thickness.includes(part.thickness)) {
+    if (currentFilters.thickness.length > 0 && part.thickness && !currentFilters.thickness.includes(part.thickness)) {
       return false
     }
     if (currentFilters.tags.length > 0) {
@@ -83,7 +83,7 @@ export function getAvailableOptions(
     if (currentFilters.material.length > 0 && !currentFilters.material.includes(part.material)) {
       return false
     }
-    if (currentFilters.thickness.length > 0 && !currentFilters.thickness.includes(part.thickness)) {
+    if (currentFilters.thickness.length > 0 && part.thickness && !currentFilters.thickness.includes(part.thickness)) {
       return false
     }
     if (currentFilters.tags.length > 0) {
@@ -124,7 +124,9 @@ export function getAvailableOptions(
     }
     return true
   })
-  partsForThicknesses.forEach(p => availableThicknesses.add(p.thickness))
+  partsForThicknesses.forEach(p => {
+    if (p.thickness) availableThicknesses.add(p.thickness)
+  })
 
   // Calculate available tags
   const partsForTags = allParts.filter(part => {
@@ -138,7 +140,7 @@ export function getAvailableOptions(
         : currentFilters.type.includes(part.type)
       if (!typeMatch) return false
     }
-    if (currentFilters.thickness.length > 0 && !currentFilters.thickness.includes(part.thickness)) {
+    if (currentFilters.thickness.length > 0 && part.thickness && !currentFilters.thickness.includes(part.thickness)) {
       return false
     }
     if (currentFilters.orderStatus.length > 0 && !currentFilters.orderStatus.includes(part.order_status)) {
@@ -167,7 +169,7 @@ export function getAvailableOptions(
         : currentFilters.type.includes(part.type)
       if (!typeMatch) return false
     }
-    if (currentFilters.thickness.length > 0 && !currentFilters.thickness.includes(part.thickness)) {
+    if (currentFilters.thickness.length > 0 && part.thickness && !currentFilters.thickness.includes(part.thickness)) {
       return false
     }
     if (currentFilters.tags.length > 0) {

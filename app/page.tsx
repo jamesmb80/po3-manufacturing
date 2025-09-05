@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import PartsTable from '@/components/parts-table'
 import FilterPanel from '@/components/filter-panel'
+import ColumnVisibility, { DEFAULT_COLUMNS, ColumnConfig } from '@/components/column-visibility'
 import { getAvailableOptions } from '@/lib/filter-utils'
 import { exportPartsToCSV } from '@/lib/csv-utils'
 import { completeProcess, rejectPart } from '@/lib/workflow-engine'
@@ -15,20 +16,20 @@ export type Part = {
   sheet_id: string
   increment_id: string
   cutting_date: string
-  order_status: string  // Original Magento status
+  order_status: string  // Mapped from item_status to user-friendly format
   shipping_name: string
   material: string
   type: string | null
   colour: string | null
   finish: string | null
-  thickness: string
+  thickness: string | null
   finish_2: string | null
   shape: string
-  depth: number | null
-  diameter: number | null
-  height: number | null
-  length: number | null
-  width: number | null
+  depth: string | null
+  diameter: string | null
+  height: string | null
+  length: string | null
+  width: string | null
   tags: string
   notes: string | null
   action: string
@@ -39,11 +40,35 @@ export type Part = {
     'parts_to_edge_band' | 'parts_to_lacquer' | 'ready_to_pack' | 'recuts' | null
   completed_processes?: string[]  // Track which processes are done
   next_process?: string  // Calculated next destination
+  
+  // Original Magento fields
+  item_name?: string  // Original item name from Magento
+  
+  // Additional EAV fields
+  product_type?: string | null
+  kit_type?: string | null
+  is_sample?: boolean
+  order_part?: string | null
+  kit_part?: string | null
+  cutter_id?: string | null
+  cutter_date?: string | null
+  further_id?: string | null
+  further_date?: string | null
+  delivery_date?: string | null
+  oversize?: boolean
+  recut_count?: number
+  
+  // Order information from sales_order_grid
+  billing_name?: string | null
+  raw_order_status?: string | null
+  order_shipping?: string | null
+  order_created?: string | null
 }
 
 export default function Home() {
   const [parts, setParts] = useState<Part[]>([])
   const [loading, setLoading] = useState(true)
+  const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(DEFAULT_COLUMNS)
   const [filters, setFilters] = useState({
     material: [] as string[],
     orderStatus: [] as string[],
@@ -57,6 +82,12 @@ export default function Home() {
   const initializeSampleData = useCallback(async () => {
     const partsWithAssignment: Part[] = sampleData.map(part => ({
       ...part,
+      // Convert dimensions to strings
+      length: part.length ? String(part.length) : null,
+      width: part.width ? String(part.width) : null,
+      height: part.height ? String(part.height) : null,
+      depth: part.depth ? String(part.depth) : null,
+      diameter: part.diameter ? String(part.diameter) : null,
       machine_assignment: null,
       processing_status: 'ready_to_cut' as const,
       completed_processes: [],
@@ -114,7 +145,7 @@ export default function Home() {
       if (filters.material.length > 0 && !filters.material.includes(part.material)) return false
       if (filters.orderStatus.length > 0 && !filters.orderStatus.includes(part.order_status)) return false
       if (filters.type.length > 0 && part.type && !filters.type.includes(part.type)) return false
-      if (filters.thickness.length > 0 && !filters.thickness.includes(part.thickness)) return false
+      if (filters.thickness.length > 0 && part.thickness && !filters.thickness.includes(part.thickness)) return false
       if (filters.tags.length > 0 && !filters.tags.some(tag => part.tags?.includes(tag))) return false
       if (filters.cuttingDateFrom && part.cutting_date < filters.cuttingDateFrom) return false
       if (filters.cuttingDateTo && part.cutting_date > filters.cuttingDateTo) return false
@@ -247,12 +278,19 @@ export default function Home() {
     <div className="container mx-auto p-4 space-y-4">
       <h1 className="text-3xl font-bold mb-4">PO3 Manufacturing Control System</h1>
       
-      <FilterPanel
-        filters={filters}
-        setFilters={setFilters}
-        allParts={parts}
-        availableOptions={availableOptions}
-      />
+      <div className="flex justify-between items-start gap-4">
+        <FilterPanel
+          filters={filters}
+          setFilters={setFilters}
+          allParts={parts}
+          availableOptions={availableOptions}
+        />
+        <ColumnVisibility
+          columns={columnConfig}
+          onVisibilityChange={setColumnConfig}
+          storageKey="ready2cut-columns"
+        />
+      </div>
 
       <Tabs defaultValue="ready" className="space-y-4">
         <TabsList className="grid grid-cols-7 w-full">
@@ -290,6 +328,7 @@ export default function Home() {
             onMarkAsCut={handleMarkAsCut}
             onSendTo={handleSendTo}
             onSendToRecuts={handleSendToRecuts}
+            columnConfig={columnConfig}
           />
         </TabsContent>
 
@@ -300,6 +339,7 @@ export default function Home() {
             onMarkAsCut={handleMarkAsCut}
             onSendTo={handleSendTo}
             onSendToRecuts={handleSendToRecuts}
+            columnConfig={columnConfig}
           />
         </TabsContent>
 
@@ -310,6 +350,7 @@ export default function Home() {
             onMarkAsCut={handleMarkAsCut}
             onSendTo={handleSendTo}
             onSendToRecuts={handleSendToRecuts}
+            columnConfig={columnConfig}
           />
         </TabsContent>
 
@@ -319,6 +360,7 @@ export default function Home() {
             tableMode="edge-banding"
             onSendTo={handleSendTo}
             onSendToRecuts={handleSendToRecuts}
+            columnConfig={columnConfig}
           />
         </TabsContent>
 
@@ -328,6 +370,7 @@ export default function Home() {
             tableMode="lacquering"
             onSendTo={handleSendTo}
             onSendToRecuts={handleSendToRecuts}
+            columnConfig={columnConfig}
           />
         </TabsContent>
 
@@ -336,6 +379,7 @@ export default function Home() {
             parts={readyToPackParts}
             tableMode="packing"
             onSendToRecuts={handleSendToRecuts}
+            columnConfig={columnConfig}
           />
         </TabsContent>
 
@@ -344,6 +388,7 @@ export default function Home() {
             parts={recutParts}
             tableMode="recuts"
             onAssignToMachine={handleAssignToMachine}
+            columnConfig={columnConfig}
           />
         </TabsContent>
       </Tabs>
