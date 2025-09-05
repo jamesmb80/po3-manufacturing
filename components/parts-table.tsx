@@ -70,6 +70,7 @@ export default function PartsTable({
   onMarkAsCut,
   onSendTo,
   onSendToRecuts,
+  onMarkAsComplete,
   tableMode = 'ready',
   currentMachine,
   processingType,
@@ -491,10 +492,10 @@ export default function PartsTable({
             <>
               <button
                 onClick={async () => {
-                  const selected = selectedIds.filter(id => parts.some(p => p.sheet_id === id))
-                  if (selected.length > 0 && props.onMarkAsComplete) {
-                    await props.onMarkAsComplete(selected)
-                    setSelectedIds([])
+                  const selectedPartIds = Array.from(selectedRows)
+                  if (selectedPartIds.length > 0 && onMarkAsComplete) {
+                    await onMarkAsComplete(selectedPartIds)
+                    setSelectedRows(new Set())
                   }
                 }}
                 className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
@@ -502,7 +503,13 @@ export default function PartsTable({
                 Mark as Complete
               </button>
               <button
-                onClick={handleReject}
+                onClick={async () => {
+                  const selectedPartIds = Array.from(selectedRows)
+                  if (selectedPartIds.length > 0 && onSendToRecuts) {
+                    await onSendToRecuts(selectedPartIds)
+                    setSelectedRows(new Set())
+                  }
+                }}
                 className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
               >
                 Send to Recuts
