@@ -445,9 +445,9 @@ export default function DataSyncPage() {
         <ol className="space-y-2 text-sm text-blue-800">
           <li>1. Test the MySQL connection first</li>
           <li>2. Choose the number of records to sync (start small for testing)</li>
-          <li>3. Optionally enable "Clear existing data" for a fresh start</li>
-          <li>4. Click "Start Sync" to import data from MySQL</li>
-          <li>5. After sync completes, click "View Parts" to see the imported data</li>
+          <li>3. Optionally enable &quot;Clear existing data&quot; for a fresh start</li>
+          <li>4. Click &quot;Start Sync&quot; to import data from MySQL</li>
+          <li>5. After sync completes, click &quot;View Parts&quot; to see the imported data</li>
         </ol>
         <p className="mt-3 text-xs text-blue-700">
           <strong>Note:</strong> The sync pulls data from the Magento production database. 
