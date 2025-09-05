@@ -2,17 +2,11 @@
 
 A modern production planning and workflow management system for manufacturing operations, built with Next.js 15 and TypeScript.
 
-## 🚀 Quick Start
+## 🚀 Live Deployment
 
-```bash
-# Install dependencies
-npm install
-
-# Run development server
-npm run dev
-
-# Access at http://localhost:3000
-```
+**Production URL**: Deployed on Vercel  
+**Status**: ✅ Live in Production (January 5, 2025)  
+**Version**: 1.0.0 - Production Release with Supabase Database
 
 ## 📋 Features
 
@@ -20,8 +14,8 @@ npm run dev
 - **11 Dashboard Views** - Complete visibility across all production stages
 - **Smart Tag-Based Routing** - Automatic workflow routing based on part tags (Banding, Lacquered)
 - **Multi-Stage Processing** - Ready → Cutting → Processing → Packing workflow
-- **Real-Time Synchronization** - Updates across all open browser windows instantly
-- **Data Persistence** - Survives page refreshes using localStorage
+- **Real-Time Database Sync** - Multi-user support with Supabase PostgreSQL
+- **Authentication** - Secure login with Supabase Auth
 
 ### User Interface (Updated January 5, 2025)
 - **Collapsible Filter Panel** - Accordion-style filters that start collapsed for cleaner view
@@ -45,8 +39,8 @@ Five dedicated production floor interfaces:
 Each station features:
 - Minimal, focused UI for production floor use
 - Process Complete/Reject buttons
-- Auto-refresh capability
-- Real-time sync with main dashboard
+- Real-time database synchronization
+- Auto-refresh every 2 seconds
 
 ### Admin Panel
 - **Workflow Configuration** - Drag-and-drop process sequence editor
@@ -55,13 +49,15 @@ Each station features:
 
 ## 🔧 Technical Stack
 
-- **Framework**: Next.js 15.5.2 with App Router
+- **Framework**: Next.js 15.5.2 with App Router and Turbopack
 - **Language**: TypeScript
+- **Database**: PostgreSQL via Supabase
+- **Authentication**: Supabase Auth
 - **Styling**: Tailwind CSS
 - **Data Tables**: Tanstack Table
 - **Icons**: Lucide React
-- **State Management**: React useState + localStorage
-- **Cross-Window Sync**: Storage event listeners
+- **State Management**: React useState + Supabase real-time
+- **Deployment**: Vercel (Production) + GitHub CI/CD
 
 ## 📁 Project Structure
 
@@ -69,6 +65,8 @@ Each station features:
 PO3/
 ├── app/
 │   ├── page.tsx                 # Main dashboard with 11 workflow views
+│   ├── login/
+│   │   └── page.tsx            # Authentication page
 │   ├── admin/
 │   │   └── page.tsx            # Admin configuration panel
 │   └── operator/
@@ -80,14 +78,63 @@ PO3/
 │   └── ui/
 │       └── tabs.tsx           # Custom tab components
 ├── lib/
+│   ├── supabase-client.ts     # Database client and API
 │   ├── workflow-engine.ts     # Core routing logic
 │   ├── filter-utils.ts        # Filter validation logic
 │   ├── csv-utils.ts           # Export functionality
 │   └── utils.ts               # Utility functions
+├── supabase/
+│   └── parts-table.sql        # Database schema
+├── middleware.ts               # Authentication middleware
 └── order_data_table.json      # Sample data with tags
 ```
 
-## 🎮 How to Use
+## 🎮 Getting Started
+
+### Prerequisites
+- Node.js 18+ 
+- npm or yarn
+- Supabase account
+- Vercel account (for deployment)
+
+### Environment Variables
+Create a `.env.local` file:
+```env
+NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_KEY=your-service-key
+```
+
+### Installation
+```bash
+# Clone the repository
+git clone https://github.com/jamesmb80/po3-manufacturing.git
+cd po3-manufacturing
+
+# Install dependencies
+npm install
+
+# Set up environment variables
+cp .env.example .env.local
+# Edit .env.local with your Supabase credentials
+
+# Run development server
+npm run dev
+
+# Access at http://localhost:3000
+```
+
+### Database Setup
+1. Create a Supabase project
+2. Run the SQL from `supabase/parts-table.sql` in SQL Editor
+3. Disable email confirmation in Authentication settings
+4. Create a demo user (admin@test.com / test123)
+
+## 🎯 How to Use
+
+### Authentication
+- Default credentials: `admin@test.com` / `test123`
+- All routes except `/login` require authentication
 
 ### Main Dashboard
 1. **View Parts** - See all parts across 11 different workflow stages
@@ -126,42 +173,48 @@ PO3/
 - `ready_to_pack` - Complete and ready
 - `recuts` - Failed/rejected parts
 
-## 🚦 API Strategy (Future)
+## 🗄️ Database Schema
 
-### Current State
-The app uses localStorage for data persistence and cross-window synchronization, which effectively demonstrates the workflow without backend complexity.
-
-### Future Integration Plan
-When ready to integrate with Magento:
-
-1. **Optimistic Locking** - Version numbers on each part
-2. **Conflict Resolution** - Check before update pattern
-3. **Background Sync** - Periodic reconciliation with Magento
-4. **Queue System** - Handle updates asynchronously (when Redis/RabbitMQ available)
-
-### Why Not Mock API Now?
-- Current localStorage approach already demonstrates real-time sync
-- Stakeholders need to validate workflow, not technical implementation
-- Adding mock API would complicate without adding business value
-- Save complexity for actual Magento integration
+The application uses a PostgreSQL database (via Supabase) with:
+- **parts** table - All part information and workflow status
+- **Row Level Security** - Authenticated users have full access
+- **Indexes** - Optimized for performance on key fields
+- **Real-time updates** - 5-second polling (main), 2-second (operator stations)
 
 ## 📊 Performance
 
 - **Load Time**: < 500ms
 - **Data Capacity**: Handles 500+ parts smoothly
-- **Sync Speed**: Real-time across windows
+- **Sync Speed**: 2-5 second polling intervals
 - **Filter Performance**: Instant with 500+ records
+- **Multi-user**: Full support with database persistence
+
+## 🚀 Deployment
+
+### Production Deployment (Vercel)
+1. Fork/clone the repository to GitHub
+2. Import to Vercel
+3. Add environment variables in Vercel dashboard
+4. Deploy automatically on push to main branch
+
+### CI/CD Pipeline
+- GitHub Actions for automated testing
+- Automatic deployment to Vercel on main branch
+- Environment variable validation
+- TypeScript and ESLint checks
 
 ## 🔮 Future Enhancements
 
 ### Phase 1 (Immediate)
+- [x] Database integration (Completed)
+- [x] User authentication (Completed)
 - [ ] Add "Complete" status after packing
 - [ ] Implement barcode scanning
 - [ ] Add production metrics dashboard
 
 ### Phase 2 (Medium Term)
-- [ ] Supabase integration for multi-user support
-- [ ] User authentication and roles
+- [ ] Real-time WebSocket updates
+- [ ] User roles and permissions
 - [ ] Production analytics
 - [ ] Batch processing capabilities
 
@@ -174,7 +227,7 @@ When ready to integrate with Magento:
 ## 🛠 Development
 
 ```bash
-# Run development server
+# Run development server with Turbopack
 npm run dev
 
 # Build for production
@@ -185,14 +238,26 @@ npm start
 
 # Run linting
 npm run lint
+
+# Database setup script
+node scripts/setup-database.js
 ```
 
 ## 📝 Notes
 
-- **Reset Data**: Use "Reset Data" button to reload sample data
+- **Authentication**: Protected routes redirect to login
+- **Sample Data**: Automatically loads if database is empty
 - **Browser Support**: Tested on Chrome, works on all modern browsers
-- **Data Storage**: Uses browser localStorage (clears with "Reset Data")
-- **Sample Data**: Includes parts with various tag combinations for testing
+- **Data Persistence**: PostgreSQL via Supabase (no localStorage)
+- **Multi-user**: All users see same data in real-time
+
+## 🔒 Security
+
+- Authentication via Supabase Auth
+- Protected API routes with middleware
+- Environment variables for sensitive data
+- Row Level Security on database
+- Secure password handling
 
 ## 📄 License
 
@@ -200,5 +265,6 @@ Private project - All rights reserved
 
 ---
 
-*Last Updated: January 5, 2025*
-*Version: 1.0.0 - MVP with UI Enhancements*
+*Last Updated: January 5, 2025*  
+*Version: 1.0.0 - Production Release with Database Integration*  
+*Repository: [github.com/jamesmb80/po3-manufacturing](https://github.com/jamesmb80/po3-manufacturing)*
