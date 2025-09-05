@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { auth } from '@/lib/supabase'
+import { createBrowserClient } from '@supabase/ssr'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('admin@test.com')
@@ -17,9 +17,27 @@ export default function LoginPage() {
     setError(null)
 
     try {
-      const result = await auth.signIn(email, password)
-      console.log('Login successful:', result)
-      router.push('/admin')
+      // Create Supabase client for browser
+      const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      )
+
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      })
+
+      if (signInError) {
+        console.error('Sign in error:', signInError)
+        setError(signInError.message)
+        return
+      }
+
+      console.log('Login successful:', data)
+      
+      // Force a hard refresh to ensure middleware picks up the new session
+      window.location.href = '/'
     } catch (err: any) {
       console.error('Login error:', err)
       setError(err.message || 'Failed to sign in')
@@ -93,7 +111,8 @@ export default function LoginPage() {
           </div>
 
           <div className="text-sm text-center text-gray-600">
-            Demo credentials: james@example.com / password
+            <p>Demo credentials:</p>
+            <p className="font-mono">admin@test.com / test123</p>
           </div>
         </form>
       </div>
